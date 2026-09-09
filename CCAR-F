@@ -1,0 +1,327 @@
+# CCAR-F Practice Questions — Scenarios 1–4
+
+Source: Claude Certified Architect Foundations Practice Exam (Matthew Purcell)
+Progress: 40/60 questions covered (Scenarios 1–4 complete). Scenarios 5–6 pending.
+
+---
+
+## Scenario 1: Customer Support Resolution Agent
+
+**1.1 (Domain 1)** — Which control flow correctly determines when to keep executing tools and when to present the final response?
+A. Loop until text contains a completion phrase
+B. Inspect `stop_reason`: "tool_use" → execute and loop; "end_turn" → present final response
+C. Run exactly five iterations
+D. Stop as soon as any response contains text content
+
+**1.2 (Domain 1)** — How does the model actually receive tool result data?
+A. MCP server pushes result directly into model memory
+B. Model re-reads tool description, now including result
+C. Nothing required — API executes tools automatically
+D. Your code appends a tool result block (referencing the tool call's ID) to conversation history and resends to Claude
+
+**1.3 (Domain 1)** — Refund cap of $500 is occasionally bypassed despite prompt instructions. Correct enforcement design?
+A. Hook intercepting outgoing `process_refund` calls, blocking amounts >$500, redirecting to escalation
+B. Move limit to top of system prompt, repeat every turn
+C. Lower temperature
+D. Add limit to tool description
+
+**1.4 (Domain 1)** — Customer message contains three concerns (refund, address change, loyalty credit). How to handle?
+A. Resolve only the first, wait for others to be re-raised
+B. Escalate immediately — multi-issue always exceeds capability
+C. Decompose into three items, investigate each (parallel where possible) using shared context, synthesize one unified resolution
+D. Ask customer to resend each separately
+
+**1.5 (Domain 1)** — Escalation handoff to humans without transcript access. What should it include?
+A. Only customer name
+B. Structured handoff summary: customer ID, root cause analysis, amounts/order numbers, recommended action
+C. A sentiment score
+D. Raw JSON of every tool result
+
+**1.6 (Domain 2)** — `process_refund` failure returns generic "Operation failed," causing wrong retry behavior. Fix?
+A. Instruct agent to retry exactly twice
+B. Remove failure responses entirely
+C. Have agent apologize on any error
+D. Return structured error metadata: `errorCategory` (transient/validation/business/permission), `isRetryable` boolean, human-readable description
+
+**1.7 (Domain 2)** — Refund violates returns window policy; tool rejects it. Which error response is correct?
+A. `errorCategory: "business"`, `retriable: false`, customer-friendly explanation
+B. `errorCategory: "transient"` so agent retries later
+C. Empty result marked success
+D. A stack trace
+
+**1.8 (Domain 2, select TWO)** — Agent confuses `get_customer` and `lookup_order`. Which TWO description changes fix misrouting?
+A. Make descriptions shorter
+B. Document input formats and add example queries **✓**
+C. Prefix with "IMPORTANT:"
+D. Add boundary language differentiating tool use cases **✓**
+E. Rely on tool names alone
+
+**1.9 (Domain 5)** — Customer's first message: "I want to speak to a human. Do not try to fix this yourself." Issue looks routine. What should agent do?
+A. Attempt resolution first, escalate only if it fails
+B. Run sentiment analysis, escalate only if frustration exceeds threshold
+C. Escalate immediately — explicit customer request for a human is honored without first attempting investigation
+D. Ask three clarifying questions first
+
+**1.10 (Domain 5, select TWO)** — Long sessions misquote amounts/order numbers due to lossy summarization; tool results dump 40+ fields into context. Which TWO changes fix this?
+A. Extract transactional facts into a persistent case-facts block outside summarized history **✓**
+B. Increase `max_tokens`
+C. Summarize even more aggressively
+D. Trim each tool result to only fields relevant to the current issue before it enters context **✓**
+E. Ask customer to repeat key numbers
+
+---
+
+## Scenario 2: Code Generation with Claude Code
+
+**2.1 (Domain 3)** — Personal `/scratch-notes` command shouldn't appear for teammates. Where does it belong?
+A. `.claude/commands/` in the repo
+B. Root `CLAUDE.md` under `# Commands`
+C. `~/.claude/commands/` in home directory — user-scoped, outside version control
+D. `.claude/rules/` with a username path glob
+
+**2.2 (Domain 3)** — `/analyze-architecture` skill produces thousands of lines polluting the main conversation. Which frontmatter option fixes this?
+A. `argument-hint`
+B. `context: fork` — runs skill in isolated sub-agent context, returns only results
+C. `allowed-tools`
+D. `paths`
+
+**2.3 (Domain 3)** — Guarantee a skill can create files but never run shell commands. How?
+A. State "never run Bash" in instructions
+B. Trust the skill's narrow purpose
+C. Run only in plan mode
+D. Set `allowed-tools` in frontmatter to permit only needed file-write ops, excluding Bash
+
+**2.4 (Domain 3)** — Team standards live in your personal `~/.claude/CLAUDE.md`; teammate's sessions ignore them. Fix and verification?
+A. Move standards into project-level `CLAUDE.md` (checked into repo); use `/memory` to verify which memory files a session loaded
+B. Email your `~/.claude/CLAUDE.md` to the teammate
+C. Have teammate reinstall Claude Code
+D. Paste standards at the start of each session
+
+**2.5 (Domain 3)** — Project `CLAUDE.md` grown to 2,000 lines, loaded regardless of task. Recommended reorganization?
+A. Delete the file
+B. Move everything to user-level `CLAUDE.md`
+C. Split into focused topic files in `.claude/rules/` (testing.md, api-conventions.md, deployment.md) with path-scoped frontmatter
+D. Convert to a single manual slash command
+
+**2.6 (Domain 1)** — Continue exactly where yesterday's named session `leak-hunt` left off. What do you run?
+A. `claude --continue-all`
+B. `claude --resume leak-hunt`
+C. `claude -p "continue the leak investigation"`
+D. New session, paste yesterday's scrollback
+
+**2.7 (Domain 1)** — Compare two competing refactoring strategies independently from the same analysis baseline, without cross-contamination. Which capability?
+A. Same session, ask Claude to "forget" the first strategy
+B. Two brand-new sessions, redo analysis in each
+C. `/compact` between strategies
+D. `fork_session` — independent branches from the shared baseline
+
+**2.8 (Domain 1)** — Resuming last week's session, but merged changes mean most tool results describe code that no longer exists. Reliable approach?
+A. New session seeded with a structured summary of prior conclusions — stale tool results make resumption unreliable
+B. Resume as-is; Claude auto-detects file changes
+C. Resume and increase `max_tokens`
+D. Never resume any session
+
+**2.9 (Domain 5)** — Context filling with verbose output mid-session; not ready to end session. Which built-in command helps?
+A. `/memory`
+B. `/fork`
+C. `/compact` — compacts conversation so session can continue productively
+D. `/rules`
+
+**2.10 (Domain 5, select TWO)** — Agent starts answering from "typical patterns" instead of specifics discovered earlier in long sessions. Which TWO practices counteract this?
+A. Switch to larger context window, keep accumulating
+B. Maintain a scratchpad file recording key findings; agent references it for later questions **✓**
+C. Repeat important questions twice
+D. Ask the agent to be more specific
+E. Delegate verbose investigation to subagents that return summaries, keeping main session for coordination **✓**
+
+---
+
+## Scenario 3: Multi-Agent Research System
+
+**3.1 (Domain 1)** — Coordinator's system prompt says delegate, but it never spawns subagents; attempts all research itself. Cause?
+A. Model tier too small
+B. Subagents must be started manually
+C. Prompt needs "delegate" capitalized
+D. Coordinator's `allowedTools` doesn't include "Task" — the mechanism for spawning subagents
+
+**3.2 (Domain 1)** — Web search subagent gathers great findings; synthesis subagent's reports are generic, referencing nothing. Coordinator just says "Synthesize the research findings." What's wrong?
+A. Synthesis agent needs extended thinking
+B. Subagents don't inherit coordinator's conversation history — coordinator must include actual findings directly in the synthesis prompt
+C. Synthesis agent needs its own web search tools
+D. Prompt needs "please"
+
+**3.3 (Domain 1)** — Coordinator invokes search subagent, waits, then invokes analysis subagent — doubling latency despite independence. How to parallelize?
+A. Emit both Task tool calls in a single response, spawning subagents in parallel
+B. Ask each subagent to work faster
+C. Run two copies of the whole system
+D. Parallelism is impossible for subagents
+
+**3.4 (Domain 1)** — Coordinator gives subagents rigid step-by-step scripts; they fail on topics that don't fit. Better design?
+A. Make procedures longer
+B. Remove all instructions
+C. Specify research goals and quality criteria; let subagent adapt its approach
+D. Have subagents ask a human whenever the script fails
+
+**3.5 (Domain 1)** — Reports are coherent but shallow on some subtopics. Want self-detection/repair of coverage gaps. Which pattern?
+A. Accept first synthesis as final
+B. Iterative refinement loop: coordinator evaluates synthesis for gaps, re-delegates targeted queries, re-invokes synthesis until sufficient
+C. Ask report generator to pad thin sections with general knowledge
+D. Always run every subagent exactly twice
+
+**3.6 (Domain 2)** — All subagents get the full 18-tool catalog; synthesis tries web search, search tries document parsing. Correct redesign?
+A. Add a 19th tool that tells agents which tool to use
+B. Alphabetize the tool list
+C. Write longer prompts warning agents off certain tools
+D. Scope each subagent's tool set to its role — a handful of relevant tools each
+
+**3.7 (Domain 2)** — Subagents burn many calls just discovering what data exists before real work begins. Which MCP capability reduces this?
+A. Expose content catalogs (document hierarchies, schemas) as MCP resources, giving visibility without exploratory tool calls
+B. Increase tool-call budget
+C. Hard-code current inventory into every system prompt
+D. Remove discovery capability
+
+**3.8 (Domain 5)** — Final reports cite nothing; each summarization step strips source attribution. Structural fix?
+A. Report generator adds plausible citations at the end
+B. Instruct synthesis to write "sources available on request"
+C. Require subagents to output structured claim-source mappings (claim, evidence, source) that every downstream agent preserves through synthesis
+D. Reduce summarization steps to one
+
+**3.9 (Domain 5, select TWO)** — Two credible sources report different market-size figures; one subagent picked the larger number. Which TWO practices are correct?
+A. Annotate the conflict explicitly (both values + attribution); let coordinator decide reconciliation **✓**
+B. Average the two figures
+C. Always adopt the more recent source, discard the other
+D. Require publication/data-collection dates in structured outputs, so temporal differences aren't misread as contradictions **✓**
+E. Exclude both sources
+
+**3.10 (Domain 5, select TWO)** — How should the web search subagent behave when searches fail or return nothing? Which TWO behaviors are correct?
+A. On any failure, terminate the entire workflow
+B. Attempt local recovery for transient failures; propagate only unresolved errors, including what was attempted and partial results **✓**
+C. Return empty results marked as success on failure
+D. Report every problem as generic "search unavailable"
+E. Distinguish access failures (timeouts/errors) from valid empty results (successful queries, no matches) **✓**
+
+---
+
+## Scenario 4: Developer Productivity with Claude
+
+**4.1 (Domain 2, select TWO)** — Locate files matching a test naming convention, and find every occurrence of a string in code. Which TWO tool selections are correct?
+A. `Glob` with a path pattern for test files **✓**
+B. `Grep` with a filename pattern for test files
+C. `Grep` for the string — content search is Grep's job **✓**
+D. `Glob` for the string across file contents
+E. `Bash` + `cat` on every file
+
+**4.2 (Domain 2)** — `Edit` fails because anchor text appears in six places (not unique). Standard fallback?
+A. Delete five occurrences to make it unique
+B. Retry the same Edit repeatedly
+C. Switch to Bash + `sed`
+D. `Read` the full file, then `Write` the complete modified content
+
+**4.3 (Domain 2)** — Agent Reads dozens of files upfront and exhausts context before answering "how does billing work?" Correct strategy?
+A. Read files alphabetically until context limit
+B. Work incrementally: `Grep` to find entry points, then `Read` selectively to trace flows
+C. Ask the developer to explain instead
+D. Read only the README
+
+**4.4 (Domain 2)** — Shared GitHub MCP server (needs auth token) + a personal experimental MCP server. Correct configuration?
+A. Shared server in project-scoped `.mcp.json` with `${GITHUB_TOKEN}` env expansion (no committed secret); personal server in user-scoped `~/.claude.json`
+B. Both in `.mcp.json`, token pasted in
+C. Both in `~/.claude.json`, instructions in wiki
+D. Shared server in `CLAUDE.md`, personal in `.claude/commands/`
+
+**4.5 (Domain 3)** — Off-by-one bug fix (clear stack trace) vs. 45+ file HTTP library migration (several viable approaches). How to assign plan mode vs. direct execution?
+A. Plan mode for both
+B. Direct execution for both
+C. Direct execution for the well-scoped bug fix; plan mode for the migration
+D. Plan mode for the bug fix, direct execution for the migration
+
+**4.6 (Domain 3)** — Developers invoke `/generate-fixture` bare, without entity type/record count, then get confused. Which frontmatter option fixes this?
+A. `context: fork`
+B. `allowed-tools`
+C. Longer skill description
+D. `argument-hint` — prompts for required parameters when invoked without arguments
+
+**4.7 (Domain 3)** — Where should (1) universal coding standards and (2) an occasional multi-step release-notes workflow live?
+A. Both as skills
+B. Standards in `CLAUDE.md` (always loaded); release-notes workflow as a skill in `.claude/skills/`, invoked on demand
+C. Both in `CLAUDE.md`
+D. Standards as a skill; workflow in `CLAUDE.md`
+
+**4.8 (Domain 1)** — Open-ended task: "add comprehensive tests to this legacy codebase," risk concentration unknown. Which decomposition fits?
+A. Map codebase structure, identify high-impact areas, create a prioritized plan that adapts as dependencies/surprises are discovered
+B. Write tests file-by-file in directory order
+C. Generate all tests in one maximal request
+D. Test only code modified in the last month
+
+**4.9 (Domain 1)** — Fixed five-aspect code review vs. production-incident investigation whose next step depends on findings. Which pairing is right?
+A. Dynamic decomposition for both
+B. Prompt chaining for both
+C. Prompt chaining (fixed sequence) for the predictable review; dynamic adaptive decomposition for the investigation
+D. Dynamic decomposition for the review; prompt chaining for the investigation
+
+**4.10 (Domain 1, select TWO)** — Which TWO statements about subagents (`AgentDefinition`) are accurate?
+A. Subagents automatically inherit parent's full conversation history
+B. Each `AgentDefinition` carries its own description, system prompt, and tool restrictions for its role **✓**
+C. Subagents can be spawned without the `Task` tool if the prompt describes them clearly
+D. Subagents share no memory between invocations — context must be provided explicitly in the prompt **✓**
+E. Subagent tool restrictions are advisory and not enforced at runtime
+
+---
+
+# Answer Key & Short Rationales
+
+### Scenario 1
+| # | Ans | Why |
+|---|-----|-----|
+| 1.1 | B | `stop_reason` is the designed termination signal — "tool_use" vs "end_turn," not text-pattern guessing or arbitrary caps. |
+| 1.2 | D | No auto-memory; your code appends a tool_result block and resends full history on the next call. |
+| 1.3 | A | Deterministic guarantees for financial rules need code-level interception (hooks), not probabilistic prompt compliance. |
+| 1.4 | C | Multi-issue decomposition within shared context protects first-contact resolution; don't drop or bounce stated concerns. |
+| 1.5 | B | Structured handoff transfers case state so a human without transcript access doesn't redo the investigation. |
+| 1.6 | D | Structured error metadata (category/retryable/description) lets the agent choose the correct recovery path. |
+| 1.7 | A | Policy violations are non-retryable business errors; retriable:false + explanation avoids futile retries. |
+| 1.8 | B, D | Input formats + examples plus explicit boundary language are what actually disambiguate similar tools. |
+| 1.9 | C | Explicit stated instructions outrank inferred signals (e.g., sentiment) — honor them immediately. |
+| 1.10 | A, D | Persist precise facts outside lossy summaries (A); trim noisy tool output before it enters context (D). |
+
+### Scenario 2
+| # | Ans | Why |
+|---|-----|-----|
+| 2.1 | C | User-scoped `~/.claude/commands/` stays personal and outside version control. |
+| 2.2 | B | `context: fork` isolates verbose skill exploration in a sub-context; only the result returns. |
+| 2.3 | D | `allowed-tools` is a runtime-enforced allowlist — a guarantee, not a request like prose instructions. |
+| 2.4 | A | Project-level `CLAUDE.md` is what every clone receives; `/memory` verifies what actually loaded. |
+| 2.5 | C | `.claude/rules/` splits a monolith into focused, path-scoped files loaded only when relevant. |
+| 2.6 | B | `--resume <name>` restores that specific session's full context. |
+| 2.7 | D | `fork_session` branches from a shared baseline into independent, non-contaminating explorations. |
+| 2.8 | A | Stale tool results make raw resumption unreliable; reseed a fresh session with curated valid conclusions. |
+| 2.9 | C | `/compact` compresses accumulated context in-session without ending it. |
+| 2.10 | B, E | A scratchpad preserves exact facts; subagent delegation keeps verbose exploration out of the main context. |
+
+### Scenario 3
+| # | Ans | Why |
+|---|-----|-----|
+| 3.1 | D | `Task` is the only spawning mechanism — missing from `allowedTools` means no delegation is possible regardless of prompt wording. |
+| 3.2 | B | Subagents don't inherit coordinator context; findings must be explicitly included in the delegation prompt. |
+| 3.3 | A | Emitting multiple `Task` calls in one response spawns subagents concurrently. |
+| 3.4 | C | Goal/criteria-based prompts let subagents adapt approach instead of breaking on rigid scripts. |
+| 3.5 | B | Iterative refinement: evaluate → targeted re-delegation → re-synthesize until coverage criteria are met. |
+| 3.6 | D | Narrow, role-scoped toolsets reduce misselection versus large shared catalogs. |
+| 3.7 | A | MCP resources expose catalogs for discovery without burning exploratory tool calls. |
+| 3.8 | C | Structured claim-source mappings preserved through every hop keep attribution intact into synthesis. |
+| 3.9 | A, D | Surface conflicts explicitly with attribution (A); dates prevent mistaking timing differences for contradictions (D). |
+| 3.10 | B, E | Layered resilience: fix transient issues locally, escalate what's unresolved (B); distinguish failure from valid-empty (E). |
+
+### Scenario 4
+| # | Ans | Why |
+|---|-----|-----|
+| 4.1 | A, C | Glob matches file paths; Grep searches file contents — each tool does its own job. |
+| 4.2 | D | Read + Write replaces the whole file when Edit's unique-anchor requirement can't be met. |
+| 4.3 | B | Incremental Grep-then-Read tracing beats broad upfront Reads that exhaust context. |
+| 4.4 | A | Shared config via `.mcp.json` + env var expansion avoids committing secrets; personal server stays user-scoped. |
+| 4.5 | C | Direct execution for well-scoped, single-path work; plan mode for large-scale, multi-approach work. |
+| 4.6 | D | `argument-hint` prompts for missing required parameters on bare invocation. |
+| 4.7 | B | `CLAUDE.md` for always-relevant standards; skills for occasional, on-demand workflows. |
+| 4.8 | A | Adaptive, discovery-driven decomposition fits genuinely open-ended, high-uncertainty tasks. |
+| 4.9 | C | Prompt chaining for fixed/predictable workflows; dynamic decomposition where findings drive the next step. |
+| 4.10 | B, D | Each subagent config is self-contained (B); subagents share no memory across invocations (D). |
