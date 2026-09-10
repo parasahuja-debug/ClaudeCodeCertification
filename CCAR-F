@@ -267,6 +267,71 @@ D. Subagents share no memory between invocations — context must be provided ex
 E. Subagent tool restrictions are advisory and not enforced at runtime
 
 ---
+## Scenario 5: Claude Code for Continuous Integration
+
+**5.1 (Domain 3)** — CI job must run Claude Code non-interactively and produce review findings your pipeline can parse and post as inline PR comments. Which invocation is correct?
+A. `claude "review this PR"` piped through `grep` to extract findings from prose
+B. `claude -p "review this PR"` with `--output-format json` and `--json-schema`, producing machine-parseable structured findings without waiting for interactive input
+C. `claude --batch "review this PR" --format=structured`
+D. `claude -p "review this PR"` alone, then regex-parsing the prose output
+
+**5.2 (Domain 3)** — CI-generated tests ignore the team's fixture library, duplicate helper setup, and test trivialities; developers reject most of them. What is the configuration-level fix?
+A. Generate three times as many tests so some survive review
+B. Have developers rewrite the generated tests as a standing chore
+C. Lower the temperature of the generation call
+D. Document testing standards, what makes a test valuable, and the available fixtures in `CLAUDE.md` — the mechanism that supplies project context to CI-invoked Claude Code
+
+**5.3 (Domain 3)** — Reviews re-run after each new commit to a PR, and the bot re-posts the same findings every time; developers now mute it. How should re-reviews be designed?
+A. Include the prior review's findings in context and instruct Claude to report only new issues or previously reported ones that remain unaddressed
+B. Review only the newest commit's diff in isolation
+C. Limit reviews to one per PR regardless of subsequent commits
+D. Post all findings again but formatted differently to seem new
+
+**5.4 (Domain 3)** — The same Claude Code session that generated a change also reviews it, and the review is conspicuously gentle, missing issues an independent reviewer catches. Why, and what is the design implication?
+A. The model is being polite; instruct it to be harsher
+B. Reviews should always be performed by a larger model tier
+C. A session retains the reasoning context from generation, making it less likely to question its own decisions — so CI reviews should run in an independent instance without the generator's context
+D. Generation and review must run on different days to avoid contamination
+
+**5.5 (Domain 4)** — Your review prompt says "be conservative and only report high-confidence findings," yet false positives remain high. What does effective precision engineering look like instead?
+A. Add "be very, very conservative" for stronger emphasis
+B. Report all findings but sort them by the model's stated confidence
+C. Reduce the number of files reviewed per run
+D. Replace confidence language with explicit categorical criteria: define which issue types to report (bugs, security) and which to skip (minor style, local patterns), with concrete boundaries
+
+**5.6 (Domain 4)** — Findings in the "code style" category are 70% false positives, and developers have begun dismissing security findings too — trust in the whole reviewer is collapsing. What is the right operational move?
+A. Ship more style findings to demonstrate the category's importance
+B. Temporarily disable the style category to restore trust in the accurate categories, while improving the style prompts before re-enabling it
+C. Rename "code style" to "code quality"
+D. Ask developers to be more tolerant of noise during the tuning period
+
+**5.7 (Domain 4)** — The reviewer labels near-identical issues "critical" one day and "minor" the next. Severity-based merge gates are therefore unreliable. How do you get consistent severity classification?
+A. Define explicit severity criteria with concrete code examples for each level, so every severity has an operational definition the model can match against
+B. Remove severity levels and treat all findings equally
+C. Let the model choose severity freely but average it over five runs
+D. Map severity to line count of the affected code
+
+**5.8 (Domain 4)** — The reviewer keeps flagging your codebase's accepted idiomatic patterns (e.g., intentional fall-throughs with comments) as bugs, while your detailed prose instructions haven't fixed it. What is the most effective addition?
+A. A rule that anything containing a comment is acceptable
+B. An instruction to "use good judgment about idioms"
+C. Few-shot examples distinguishing the accepted patterns from genuine issues — showing the reasoning why each is or isn't reportable — so the model generalizes the judgment to novel cases
+D. A ban on reviewing files containing any idiomatic pattern
+
+**5.9 (Domain 4, select TWO)** — Your team is deciding which CI workloads to move to the Message Batches API for its 50% cost savings. Which TWO statements are accurate?
+A. Batch processing suits latency-tolerant, non-blocking workloads like nightly test generation and weekly audit reports ✓
+B. Batches are guaranteed to complete within one hour
+C. The batch API supports multi-turn tool calling within a single request
+D. Blocking workflows such as pre-merge checks should stay on the synchronous API, since batches can take up to 24 hours with no latency SLA ✓
+E. Batch responses cannot be matched back to their requests
+
+**5.10 (Domain 4, select TWO)** — You are adding few-shot examples to the review prompt. Which TWO practices reflect how few-shot prompting works best?
+A. Include as many examples as possible — twenty or more — to cover every case
+B. Use 2–4 targeted examples aimed at the ambiguous scenarios, showing the reasoning for why one action was chosen over plausible alternatives ✓
+C. Once examples are added, explicit criteria become unnecessary
+D. Rely on examples only for prose tasks; they don't work for code
+E. Include examples demonstrating the exact desired output format — location, issue, severity, suggested fix — to achieve consistent, actionable findings ✓
+
+---
 
 # Answer Key & Short Rationales
 
@@ -325,3 +390,17 @@ E. Subagent tool restrictions are advisory and not enforced at runtime
 | 4.8 | A | Adaptive, discovery-driven decomposition fits genuinely open-ended, high-uncertainty tasks. |
 | 4.9 | C | Prompt chaining for fixed/predictable workflows; dynamic decomposition where findings drive the next step. |
 | 4.10 | B, D | Each subagent config is self-contained (B); subagents share no memory across invocations (D). |
+
+### Scenario 5
+| # | Ans | Why |
+|---|-----|-----|
+| 5.1 | B | `-p` makes it non-interactive; `--output-format json` + `--json-schema` guarantees machine-parseable structured findings instead of scraped prose. |
+| 5.2 | D | `CLAUDE.md` supplies persistent project context (standards, fixtures) to every invocation, including CI's `-p` runs — missing knowledge isn't fixed by volume or temperature. |
+| 5.3 | A | Feed the prior review's findings back into context and instruct the model to report only deltas — new or still-unaddressed issues — since Claude has no memory of the last CI run otherwise. |
+| 5.4 | C | A session that generated the code carries the reasoning that justified it, biasing self-review; run review in an independent instance with no generator context. |
+| 5.5 | D | Vague conservatism doesn't transfer; explicit categorical criteria with concrete boundaries give the model an operable rule. |
+| 5.6 | B | A high-noise category damages trust across all categories; disable and fix it offline rather than let it erode credibility everywhere. |
+| 5.7 | A | Concrete examples per severity level anchor an operational definition, preventing the same issue from drifting between "critical" and "minor." |
+| 5.8 | C | Few-shot examples with reasoning transfer nuanced judgment (accepted idiom vs. genuine bug) that prose alone failed to convey, and generalize to novel cases. |
+| 5.9 | A, D | Batch fits latency-tolerant, non-blocking workloads (A); blocking workflows must stay synchronous since batch has no latency SLA and can take up to 24 hours (D). |
+| 5.10 | B, E | Few-shot works best with a small number of targeted, reasoning-annotated examples (B) and examples that lock in exact output format for consistency (E) — not raw volume. |
