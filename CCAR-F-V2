@@ -1,0 +1,301 @@
+# CCAR-F Advanced Drill — 
+---
+
+## Questions
+
+### Q1 — Domain 1
+A multi-tenant SaaS admin agent handles requests like "reset user X's password" and "list all users in tenant Y over quota." The harness routes *every* incoming request — regardless of complexity — through a `Task` call to a general-purpose subagent first, which then decides whether to call a tool. Support engineers complain that even one-line lookups now take 8–12 seconds instead of ~1 second, because each subagent invocation pays fresh context-loading and reasoning overhead before it ever touches the real tool.
+
+What is the most appropriate fix?
+
+A) Add a hook that blocks `Task` calls whose input matches a single-tool-call pattern, forcing the orchestrator to reconsider.
+B) Reserve subagent delegation via `Task` for requests that plausibly need multi-step exploration, independent context, or parallelizable work; let the primary agent call simple, well-scoped tools (like `reset_password` or `list_users`) directly for single-step requests.
+C) Increase the model tier used by the subagent so it reasons faster and cuts the latency overhead.
+D) Convert `reset_password` and `list_users` into MCP resources instead of tools, since resources are read directly without triggering agentic reasoning.
+
+### Q2 — Domain 4
+A legal-document review agent extracts contract terms using tool-use-for-extraction. The extraction tool's schema defines `termination_clause` as a **required** string field. When a contract genuinely has no termination clause, the model has been observed to either hallucinate boilerplate text to satisfy the required field, or throw a validation failure on the whole extraction.
+
+What's the best fix?
+
+A) Set `tool_choice` to `"any"`, so the model is forced to pick a tool call that fits the document instead of stalling.
+B) Make `termination_clause` a nullable field (so `null` is a valid, honest value for "not present"), and keep fields required only where the data must always exist.
+C) Add more few-shot examples showing what termination clauses look like, so the model recognizes them more reliably.
+D) Switch `tool_choice` to `"auto"`, so the model can decide not to call the extraction tool at all when no termination clause exists.
+
+### Q3 — Domain 2
+A data-pipeline orchestrator agent has one MCP tool, `db_operation`, taking a `mode` parameter (`"read"`, `"write"`, `"delete"`) plus a free-form `payload` JSON blob whose expected shape depends on `mode`. The agent has repeatedly issued delete operations on tables it only meant to query, because it mis-set `mode` while reasoning through the polymorphic payload structure.
+
+Best fix?
+
+A) Improve the tool's description string with more detailed prose covering all three modes and their payload shapes, so the model reasons more carefully before picking a mode.
+B) Split `db_operation` into purpose-specific tools — `query_table`, `write_table`, `delete_table` — each with its own narrow, unambiguous schema, so a destructive action requires selecting a distinctly-named tool rather than setting a parameter inside an overloaded one.
+C) Add an `isError` flag to the tool's response so the agent can detect after the fact that a delete happened on the wrong table and self-correct.
+D) Add a system-prompt instruction requiring the agent to always call `db_operation` in `"read"` mode before any other mode, to double-check state before mutating.
+
+### Q4 — Domain 3
+A coding-agent team put this in their project `CLAUDE.md`: *"Never run destructive git commands without confirmation."* During an unattended CI remediation workflow (no human present at any point in the run), the agent still force-pushed to a shared branch.
+
+Best fix?
+
+A) Move the instruction from `CLAUDE.md` into a dedicated `.claude/rules/` file so it loads more prominently and earlier in context.
+B) Add a `PreToolUse` hook that deterministically blocks or intercepts destructive git commands (e.g., force-push) unless an explicit approval flag is present — since natural-language instructions in `CLAUDE.md` are advisory and depend on the model's own judgment, which breaks down in an unattended run where "confirmation" has no one to give it.
+C) Turn the git workflow into a skill with a strict `argument-hint`, so the model is prompted to confirm before invoking it.
+D) Set `allowed-tools` to exclude `git push` entirely, so the model can never call it under any circumstance.
+
+### Q5 — Domain 5
+A long-running research agent starts each session with a case-facts block containing verified information — e.g., *"Company X's fiscal year ends in March."* Later in the same session, a web search tool call returns a result from a third-party blog claiming *"Company X's fiscal year ends in December."* The agent updates its working answer to December, silently overwriting the original verified fact.
+
+What's the right fix?
+
+A) Remove the web search tool from the agent's toolset entirely, since external retrieval introduced the unreliable source that overrode ground truth.
+B) Treat the original, explicitly-provided case-facts as the higher-precedence source; when new information conflicts with an established fact, the agent should flag the discrepancy and defer to the case fact rather than silently overwriting it — unless the framework explicitly designates a path for authoritative correction.
+C) Increase the context window size so the agent can hold more information and reduce the risk of contradictions.
+D) Summarize the web search result more concisely before adding it to context, so it takes up less space and is less likely to be over-weighted by the model.
+
+### Q6 — Domain 1 / Domain 4 (combined)
+A voice-assistant agent books appointments via `book_appointment(date: string, time: string, service: string)`. The `date` field's schema is just `"type": "string"` — no format constraint. Under high call volume, the model sometimes emits informal strings like *"next Friday"* or *"tomorrow"* instead of a normalized date, and these pass straight through to the downstream booking system, causing double-bookings and wrong-day bookings. The team wants a fix that closes this failure class even in the cases where the model still tries to emit an informal date.
+
+Which pair of changes together correctly fixes this?
+
+A) (1) Change `date`'s schema to require an ISO 8601 pattern, **and** (2) add a hook that deterministically rejects any `book_appointment` call whose `date` doesn't match that pattern before it reaches the booking system.
+B) (1) Add several few-shot examples of correctly formatted dates, **and** (2) increase the model's context window so it "remembers" the correct format for longer.
+C) (1) Change `date`'s schema to require an ISO 8601 pattern, **and** (2) rely on the model to self-correct if it notices its own date is informally formatted, since schema descriptions alone are usually sufficient.
+D) (1) Add a hook that deterministically blocks any `book_appointment` call with an informal date string, **and** (2) leave the schema as a free-form `string`, since the hook alone fully prevents bad data from reaching the booking system.
+
+### Q7 — Domain 2 *(select TWO)*
+A customer-support agent is granted MCP tools from a "billing" server and a "ticketing" server. Junior support agents should only view invoices, never issue refunds; senior agents need both. Currently, all support sessions get the identical full toolset from both servers, and the only enforcement is a system-prompt paragraph telling the model *"only refund if the user is a senior agent."* Junior-agent sessions have since issued refunds when a customer was persuasive enough.
+
+Select the **two** changes that meaningfully fix this failure mode:
+
+A) Scope the toolset per role at the harness/session level, so junior-agent sessions are never given the `issue_refund` tool at all — it simply isn't in their available tools.
+B) Split the billing server's tool into purpose-specific tools (`view_invoice`, `issue_refund`) if it isn't already, so refund capability isn't buried inside a generic overloaded call.
+C) Strengthen the system-prompt wording to more forcefully say "NEVER refund unless senior," using emphasis and repetition.
+D) Add a `PreToolUse` (or equivalent access-control) hook that validates the caller's role against the tool before execution, as a deterministic backstop even if scoping is misconfigured somewhere.
+E) Convert `issue_refund` into an MCP resource instead of a tool, since resources are inherently read-only and safer to expose broadly.
+
+### Q8 — Domain 3
+A team maintains a monorepo where one subdirectory, `services/payments/`, has stricter conventions than the rest of the repo (mandatory two-person review notes in every commit message, no direct calls to a legacy SDK). Currently these rules live as one more paragraph inside the repo-root `CLAUDE.md`, and engineers report the agent frequently forgets to apply them when working purely inside `services/payments/`, especially in long sessions where the root `CLAUDE.md` content has scrolled far back in context.
+
+Best fix?
+
+A) Move the `services/payments/`-specific rules into their own `CLAUDE.md` (or `.claude/rules/` file) located inside `services/payments/` itself, so it's scoped to and loads specifically when the agent is working in that directory.
+B) Reword the root `CLAUDE.md` paragraph to be more emphatic about the payments-specific rules, so the model weighs it more heavily regardless of session length.
+C) Convert the payments conventions into a skill that the agent must manually decide to invoke every time it touches a file in that directory.
+D) Increase the model's context window so the root `CLAUDE.md` content stays "closer" in effective attention even in long sessions.
+
+### Q9 — Domain 4
+A content-moderation agent is instructed: *"Flag posts that are inappropriate for a general audience."* Two similar posts describing a minor injury get inconsistent outcomes — one flagged, one not — even under otherwise identical settings, and this variance shows up broadly across many borderline post types, not just one pair.
+
+Best fix?
+
+A) Lower the temperature to 0 so the model becomes fully deterministic and gives the same answer every time.
+B) Replace "inappropriate for a general audience" with an operational, testable rubric — explicit categories and thresholds (e.g., specific criteria for graphic injury detail, explicit violence description, etc.) — so different inputs are judged against the same concrete criteria instead of a subjective label.
+C) Add more few-shot examples of "appropriate" posts so the model has more contrast to learn from.
+D) Run the same prompt multiple times per post and take a majority vote, since some inconsistency is inherent to LLMs and can only be smoothed statistically.
+
+### Q10 — Domain 5
+An insurance-claims triage agent was validated with 95% human-review sampling on rollout. After three months of stable performance, the team cut review sampling to 1% to save cost. Two months later, they discover the agent had been systematically misrouting a new claim type — introduced by an unrelated product change — for weeks, undetected because so few claims were being sampled for review.
+
+What's the best characterization of the fix?
+
+A) Sampling can reasonably be reduced as trust builds on a stable population, but that trust doesn't transfer automatically to a shifted input distribution — monitoring should detect distributional drift (like a new claim type appearing) and trigger a return to higher/stratified sampling for the affected segment, rather than sampling staying static indefinitely.
+B) Sampling should always remain at the original 95% validation rate indefinitely, since reducing it is never justified once a rate has been established.
+C) The agent's confidence threshold should be globally lowered so it escalates more claims to humans by default.
+D) This isn't really a sampling/monitoring issue — the real problem is that the system prompt never explicitly enumerated the new claim type, making it a Domain 3 configuration gap rather than a Domain 5 reliability gap.
+
+### Q11 — Domain 1
+Claude's API response contains a `tool_use` content block (calling `get_weather`) and `stop_reason: "tool_use"`. The harness executes the tool and now needs to continue the conversation.
+
+What must the *next* API request's `messages` array contain for the conversation to continue correctly?
+
+A) Only a new user message with a `tool_result` block — you don't need to re-include the assistant's `tool_use` message, since the API remembers the previous turn on its own servers.
+B) The assistant's message containing the original `tool_use` block, followed by a new user message containing a `tool_result` block whose `tool_use_id` matches that `tool_use` block's id — because the API is stateless and the full history, including the exact `tool_use` block, must be resent so the result can be correlated back to it.
+C) A new assistant message summarizing what the tool returned, replacing the original `tool_use` block, since resending the exact block would duplicate data unnecessarily.
+D) Manually set `stop_reason` to `"end_turn"` in the next request to signal the tool cycle is complete, and include the tool result as a system message.
+
+### Q12 — Domain 2
+A tool `send_invoice_email` occasionally fails due to transient SMTP timeouts. On failure, it currently returns a normal (non-error) `tool_result` whose content is just the string `"Error: SMTP timeout, please retry."` The agent, seeing what looks like an ordinary successful `tool_result`, sometimes doesn't recognize the failure and tells the user the invoice was sent.
+
+Best fix?
+
+A) Set the `tool_result`'s `is_error` field to `true` when the send fails, so the model reliably recognizes the call failed via structured metadata rather than having to infer failure by parsing free-text content that happens to start with "Error:".
+B) Change the tool's description to mention that failures are indicated by content starting with the string "Error:", so the model knows what prefix to look for.
+C) Add a retry loop in the harness that automatically retries the SMTP send up to 3 times, and once retries are exhausted, always report success to the model regardless of the true outcome, to reduce noise.
+D) Add a system-prompt instruction telling the model to "always double check tool results carefully for the word 'Error'" before reporting success to the user.
+
+### Q13 — Domain 3
+A team runs a single long-lived Claude Code session across a full day, moving through unrelated tasks in sequence: fixing bug A in the morning, then reviewing an unrelated PR B, then writing docs for feature C in the afternoon. By the afternoon, quality degrades — the model starts carrying over assumptions from the morning's bug-A investigation into its review of the unrelated PR B. However, the team has also found real value in staying in one session: it discovered and remembered several project conventions earlier in the day that later tasks benefit from.
+
+What's the best mechanism to address the degradation *without* losing that accumulated value?
+
+A) Use compaction (e.g., `/compact`) at each task boundary, condensing the resolved bug-A work into a summary — so decisions and conventions worth keeping survive, but the noisy resolved-task details stop crowding out and contaminating the next unrelated task.
+B) Start a completely new session at every task boundary, discarding all prior context, to guarantee zero cross-task contamination.
+C) Use `context: fork` on every subagent call regardless of task type, since forking always isolates context regardless of what the parent session is doing.
+D) Increase the context window size so there's room for both the bug-A details and the PR-B details simultaneously, without the model needing to choose what's still relevant.
+
+*(Follow-up discussed live: whether `context: fork` on subagents could achieve the same goal if the three tasks had been structured as delegated units — yes in principle, but fork suits self-contained, hand-off-and-return work, while compaction suits a single ongoing interactive thread, which is what this scenario actually describes.)*
+
+### Q14 — Domain 1
+A research agent needs stock prices for 5 independent tickers to answer *"compare the YTD performance of these 5 companies."* It currently issues the 5 `get_stock_price` calls one at a time across 5 separate turns — call, wait, decide, call again — taking noticeably longer than needed.
+
+Best fix?
+
+A) Since these 5 calls are independent and don't depend on each other's results, the model should be enabled/encouraged to issue all 5 `tool_use` blocks within a single assistant turn, so the harness executes them in parallel instead of sequencing them one call per turn.
+B) Delegate each ticker lookup to a separate subagent via `Task`, since parallelizing work is inherently a subagent-delegation problem.
+C) Lower the model's temperature so it decides faster which tool to call next, cutting the per-turn overhead.
+D) Combine the 5 lookups into one custom tool, `get_all_stock_prices(tickers: list)`, since this is strictly better than parallel `tool_use` blocks in every case.
+
+*(Follow-up discussed live: parallel execution is a harness capability, not something the model does unilaterally — whether via plain parallel tool calls or parallel subagent dispatch, the model's job is the same, to emit multiple independent calls in one turn; subagents just add unneeded overhead here.)*
+
+### Q15 — Domain 2
+A legal-document review agent has two MCP capabilities, both currently modeled as tools: `get_compliance_rules(jurisdiction: string)` — returns a mostly-static, rarely-changing set of jurisdiction-specific compliance rules — and `check_document_compliance(document: string, jurisdiction: string)` — submits a document for a compliance check and returns a computed pass/fail plus flagged issues.
+
+Which one should be modeled as an MCP **resource** instead of a tool, and why?
+
+A) `get_compliance_rules` should be a resource, since it's static, read-only reference content being exposed for context; `check_document_compliance` should stay a tool since it performs a computation/action and returns a derived result, not stored content.
+B) Both should be resources, since resources are generally more efficient, and any MCP capability that returns data to the model should be modeled as a resource rather than a tool.
+C) `check_document_compliance` should be the resource, since resources let the model retrieve information more efficiently, and `get_compliance_rules` should stay a tool since it takes a `jurisdiction` parameter and only tools can accept parameters.
+D) Neither should change — resources and tools are functionally interchangeable in MCP, so the current all-tool design is already correct.
+
+### Q16 — Domain 5
+A data-pipeline orchestrator agent processes daily batches of ~500 vendor invoices. When a single invoice fails validation (e.g., a malformed currency field), the pipeline currently aborts the **entire batch**, requiring a human to manually fix the one bad invoice and restart the whole run — causing multi-hour delays reprocessing 499 invoices that were already fine.
+
+Best fix for the error routing/escalation strategy?
+
+A) Isolate failures at the individual-invoice level: continue processing the other 499, route the single failed invoice to a dead-letter/human-review path with enough context to diagnose it, and report a summary of successes and failures rather than treating the whole batch as failed.
+B) Add a retry loop that resubmits the entire batch up to 3 times whenever any invoice fails, hoping the malformed field resolves itself on a later attempt.
+C) Lower validation strictness so malformed currency fields are silently accepted and pass through, since strict validation is what's causing the abort.
+D) Escalate the entire batch to a human every time, even for a single-invoice failure, since human review is the safest fallback and no invoice should process automatically until a human confirms the whole batch is clean.
+
+### Q17 — Domain 4
+A company needs to run sentiment classification (via a tool-use call) over 2 million historical support tickets — a one-time backfill with no strict latency requirement (results within 24 hours is fine). They're currently doing this through the standard synchronous Messages API, one ticket at a time, and are hitting rate limits and high per-request cost at that volume.
+
+Best fix?
+
+A) Switch this workload to the Batches API — it's designed for large-volume, latency-insensitive workloads, offering different (typically discounted) pricing and higher effective throughput without requiring real-time synchronous responses.
+B) Keep the synchronous Messages API, but parallelize across as many concurrent connections as possible, since more concurrency always resolves rate-limit and throughput problems regardless of request type.
+C) Reduce scope to a 10% sample of tickets, since 2 million is more than needed for a sentiment classification task.
+D) Switch to a smaller/cheaper model tier for this workload, since cost is the primary concern and classification doesn't need the most capable model.
+
+### Q18 — Domain 1
+A document-generation agent produces legal contracts through 5 fixed-order steps: gather party details → select clauses by jurisdiction → draft the document → run a compliance check → format for delivery. The order rarely changes, and each step's output feeds cleanly into the next with little need for branching or re-planning based on intermediate results. It's currently built as one dynamic agentic loop, where the model re-reasons "what should I do now" at every turn — adding unnecessary latency and occasionally causing the agent to skip straight to drafting without gathering party details first.
+
+Best fix?
+
+A) Since these steps are fixed-order, deterministic, and each fully depends on the previous step's output with little need for dynamic re-planning, this fits explicit prompt chaining (a fixed sequence of calls) better than a fully dynamic agentic loop — removing the unnecessary "what's next" reasoning and the chance of skipped steps that comes with it.
+B) Add Task-based subagent delegation for each of the 5 steps, since breaking work into subagents always reduces latency regardless of whether the steps are dynamic or fixed-order.
+C) Increase the model's context window so it can hold the full 5-step plan in mind at once and avoid skipping steps.
+D) Add a hook that blocks the "draft document" step from executing unless "gather party details" has already completed in the same session, without changing the overall architecture.
+
+### Q19 — Domain 2
+A company builds an internal MCP server wrapping a local SQLite file that lives on the same machine as the agent process, used only by a single local agent instance for ad-hoc dev queries. They deployed it using a remote HTTP-based transport — a separate networked service with authentication, TLS termination, and a load balancer — even though only one local process ever calls it.
+
+Best fix, from a transport perspective?
+
+A) For a server only ever called by a single local process on the same machine, a local stdio-based transport is simpler and more appropriate — no network stack, auth infrastructure, or TLS needed for something that never leaves the local process boundary. Reserve HTTP/SSE-style remote transports for servers that need to be reached across machines/processes or by multiple independent clients.
+B) Transport choice doesn't really matter — stdio and HTTP-based transports are functionally identical in every deployment scenario, so there's no meaningful issue here.
+C) Keep the HTTP-based remote transport, but remove the authentication and TLS to reduce overhead, since it's only used locally anyway.
+D) Switch to a stdio-based transport, but keep the same authentication and TLS setup as before, since security requirements never change regardless of transport type.
+
+### Q20 — Domain 3
+A developer wants a personal shortcut, `/tidy-commit`, that reformats commit messages to their own preferred style — relevant only to them, and useful across every repo they work in, unrelated to any team convention. Separately, this specific repo has a team-wide rule: *"all commits must reference a JIRA ticket ID"* — relevant to everyone working in that repo, regardless of who they are.
+
+How should these two be configured, respectively?
+
+A) `/tidy-commit` as a user-scoped custom command (follows that developer across all their projects), while the JIRA-ticket rule belongs in the project's own `CLAUDE.md` (or `.claude/rules/`), since it must apply to everyone working in that specific repo.
+B) Both belong in the same project-level `CLAUDE.md` — putting all configuration in one place is always simpler, regardless of whether a rule is personal or team-wide.
+C) `/tidy-commit` should be a project-scoped command in the repo's `.claude/commands/` for consistency, and the JIRA rule should be a user-scoped setting since it's a strict personal requirement.
+D) Both should be implemented as skills instead of commands or `CLAUDE.md` rules, since skills are strictly more powerful and should replace commands and rules wherever possible.
+
+### Q21 — Domain 5
+A research agent runs a 2-hour investigation involving many tool calls, web searches, and calculations. Early on, it confirms a critical fact via an SEC filing: *"the target company's stock ticker is XYZ."* Deep into the session, after many turns of unrelated exploration, the team is worried this fact could get lost — either summarized away if compaction runs, or simply outweighed/missed by the model amid reams of accumulated search results.
+
+Best practice here?
+
+A) Persist critical, load-bearing facts like this to an explicit, separately-maintained case-facts record or scratchpad — a running structured file the agent writes to and re-reads — rather than relying on it staying discoverable purely by being present somewhere in raw conversation history. This way it survives compaction and stays reliably retrievable regardless of how much unrelated exploration piles up afterward.
+B) Avoid compaction entirely for the whole session, no matter how long it runs, since compaction risks losing any fact regardless of importance.
+C) Repeat the critical fact verbatim in every single subsequent tool call's arguments, even when irrelevant to that call, to keep it maximally "fresh."
+D) Rely on the model's long-context recall ability alone, since modern models can retrieve specific facts from very long contexts without additional scaffolding.
+
+### Q22 — Domain 1 (cross-domain trap — looks like Domain 3)
+A Claude Code agent runs a large refactor across a monorepo. The team set up thorough `.claude/rules/` files, a detailed `CLAUDE.md` describing coding conventions, and appropriate `allowed-tools`. Despite this, the agent increasingly "forgets" conventions it followed correctly earlier in the *same* session, once that session has run for several hours across many files — even though nothing in the config changed and nothing was misconfigured. The team's first instinct: their `CLAUDE.md` must be incomplete, so they should add even more detail.
+
+What's actually going on, and where does the real problem sit?
+
+A) This isn't a configuration problem — the config was never lost or unclear. It's a context-degradation issue: as the session accumulates hours of unrelated file-editing history, that raw history can crowd out effective attention on the standing conventions, even though `CLAUDE.md` is still technically present. The fix is context management (compaction, or clean session boundaries per logical unit of work), not more configuration text.
+B) The team's instinct is correct — `CLAUDE.md` is under-specified, so the fix is to keep adding more explicit rules and examples until the agent stops forgetting them.
+C) This is an MCP tool design problem — the file-editing tools likely have poor descriptions, causing the agent to lose track of conventions, so the fix is rewriting tool descriptions.
+D) This is a `context: fork` misconfiguration — subagents spawned during the refactor must not be inheriting the parent's `CLAUDE.md`, so every forked subagent should be made to explicitly re-read it.
+
+### Q23 — Domain 4
+A financial agent extracts loan application data via a tool call with fields `annual_income: number`, `loan_amount: number`, `debt_to_income_ratio: number`. Several extractions produce data that's technically valid per the schema (correct types, all required fields present) but semantically nonsensical — e.g., `debt_to_income_ratio: 15.7` (a ratio that should realistically fall well under 2) or `annual_income: -50000` (negative income). JSON-schema syntactic validation (types, required fields) is already correctly implemented, but these bad values still reach downstream underwriting logic.
+
+Best next step?
+
+A) Add a semantic/business-rule validation layer beyond basic type-checking — range constraints (e.g., `debt_to_income_ratio` bounded to a sane range, `annual_income >= 0`) — and route values failing these checks to human review or a re-extraction/clarification pass. Schema type validation only guarantees *shape*, not *plausibility*.
+B) Tighten the JSON schema by changing `annual_income` and `debt_to_income_ratio` from `number` to `integer`, since integers are inherently less error-prone than floats.
+C) Lower the extraction tool's temperature to 0, since the negative income and out-of-range ratio are just sampling noise, and a deterministic setting will produce plausible values instead.
+D) Since syntactic (schema) validation is already correctly implemented, no further validation is possible — any remaining bad values reflect a fundamental model limitation with no architectural fix.
+
+### Q24 — Domain 3
+A developer uses Claude Code for everyday small edits — renaming a variable, fixing a typo in a comment, bumping a version string in a config file. For every single one of these trivial, unambiguous, single-file edits, the agent insists on entering plan mode first — presenting a full written plan and waiting for approval before making a one-line change — adding friction to tasks with essentially no risk or ambiguity.
+
+Best fix?
+
+A) Reserve plan mode for tasks with genuine ambiguity, multi-file/multi-step scope, or meaningful risk/blast-radius (e.g., a schema migration, a cross-cutting refactor); let clearly-scoped, low-risk, single-file edits execute directly without a planning gate. Plan mode's value comes from surfacing uncertainty and aligning before costly or hard-to-reverse work — not from checkpointing every action regardless of stakes.
+B) Keep plan mode mandatory for every change without exception, since more review steps are always safer regardless of the task's actual risk or complexity.
+C) Replace plan mode with a `PreToolUse` hook that blocks all file-edit tool calls until a human manually approves each one in a terminal prompt, since this achieves the same review guarantee with less overhead.
+D) Disable plan mode globally and always use direct execution going forward, including for large migrations and multi-file refactors, since plan mode was clearly causing more friction than value here.
+
+---
+
+## Answers & Rationale
+
+**Q1 — B.** Subagent delegation earns its overhead (fresh context, independent reasoning) only for work needing isolation, multi-step exploration, or parallelism. A single deterministic tool call gets none of those benefits, so routing it through `Task` just adds latency for nothing. *(A: hooks are for deterministic enforcement, not judgment calls about "is this simple enough." C: model tier doesn't remove the structural round-trip overhead. D: resources are for read-only data, not write actions like `reset_password`.)*
+
+**Q2 — B.** Nullable fields let the schema represent a legitimately absent value truthfully instead of forcing fabrication or failure. *(A/D: `tool_choice` variants don't touch what happens to an individual required field. C: more few-shot examples don't create a valid "absent" representation.)*
+
+**Q3 — B.** Splitting an overloaded, polymorphic tool into purpose-specific tools removes the ambiguity that let a destructive action hide inside a parameter value. *(A: better prose is a band-aid on a structurally ambiguous tool. C: `isError` only helps after the damage is done. D: soft sequencing instructions aren't deterministic and don't fix the same-call ambiguity.)*
+
+**Q4 — B.** `CLAUDE.md` instructions are advisory natural language; an unattended run has no one to give "confirmation" to, so a `PreToolUse` hook is needed as a deterministic backstop. *(A: relocating the same advisory text changes nothing about enforceability. C: `argument-hint` is for interactive CLI use, not automation. D: excluding `git push` entirely is too blunt — it blocks legitimate pushes too.)*
+
+**Q5 — B.** Explicitly provided case-facts should out-rank an arbitrary retrieved source; conflicts should be flagged, not silently overwritten. *(A: throws out a useful tool entirely. C: context size isn't the issue — precedence is. D: shortening the new info doesn't change its epistemic weight.)*
+
+**Q6 — A.** Needs both: the schema communicates the expected format (reducing malformed output), and the hook deterministically catches whatever slips through anyway. *(B: neither lever guarantees compliance. C: schema alone still allows malformed dates through since nothing enforces it. D: hook alone works but forces excessive retries since the model gets no format signal upfront.)*
+
+**Q7 — A and D (you answered B and D — partial, scored incorrect).** Toolset scoping (A) removes the capability from junior sessions entirely; a role-check hook (D) is the deterministic backstop if scoping drifts. *(B — your pick — is a real principle, purpose-specific tools, but doesn't fix who has access to the tool at all, which is the actual defect. C: louder prompt wording is the same failed mechanism, just emphasized. E: refunds have side effects and can't be a read-only resource.)*
+
+**Q8 — A.** Directory-scoped config loads specifically when work happens in that directory, rather than competing for attention as one paragraph in a repo-wide file. *(B: same location, just louder wording, doesn't fix the scoping problem. C: a skill the model must remember to invoke reintroduces the same reliability gap. D: bigger context window doesn't fix a scoping/organization defect.)*
+
+**Q9 — B.** A vague label produces inconsistent judgment calls; an operational, testable rubric gives the same concrete criteria for every input. *(A: temperature 0 only removes randomness for identical inputs, not inconsistency across different-but-similar ones. C: few-shot examples are an indirect, incomplete substitute for an explicit rubric. D: majority voting just averages several inconsistent judgments of the same vague rubric.)*
+
+**Q10 — A.** Trust from validation is trust in a specific population; a distribution shift (new claim type) should trigger renewed/stratified sampling, not be caught only by luck. *(B: permanent max sampling defeats the point of automating at all. C: a global confidence change is the wrong scope — the issue was localized. D: cross-domain trap — patching the prompt doesn't fix the missing drift-detection/monitoring layer that would catch the *next* shift too.)*
+
+**Q11 — B.** The API is stateless; the full history, including the exact `tool_use` block, must be resent so the `tool_result`'s `tool_use_id` can correlate back to it. *(A: false — the API doesn't remember prior turns server-side. C: replacing the block with a summary breaks the required correlation. D: `stop_reason` is server-set, not client-set, and tool results go in a user-role message, not a system message.)*
+
+**Q12 — A.** `is_error: true` is structured metadata that removes the need for the model to parse free text to detect failure. *(B: still relies on fragile text-prefix parsing, just documented instead of fixed. C: actively dangerous — bakes in false success reporting. D: soft keyword-scanning instruction is unreliable under load.)*
+
+**Q13 — A.** Compaction condenses resolved work into a summary, keeping useful decisions/conventions while dropping the noisy detail that was contaminating new tasks — without discarding everything. *(B: discards the useful conventions along with the noise. C: `context: fork` is for subagent isolation, not a single ongoing session's own accumulation. D: bigger context window doesn't stop stale-but-present context from wrongly influencing new work.)*
+
+**Q14 — A.** Independent calls should be batched into one turn's multiple `tool_use` blocks and executed in parallel by the harness, instead of serialized needlessly. *(B: subagent delegation adds context-loading overhead for zero benefit over plain parallel calls to the same tool. C: temperature doesn't affect turn-taking structure. D: "strictly better in every case" is the tell — a batched custom tool loses per-call error granularity and isn't universally superior.)*
+
+**Q15 — A.** Static, pre-existing reference content fits a resource; a computed, action-driven result fits a tool. *(B: overgeneralizes — not all data-returning capabilities are resources, especially computed ones. C: backwards, and the stated reasoning about parameters is also factually wrong — resource templates can take parameters. D: contradicts the entire point of the resources-vs-tools distinction being a tested concept.)*
+
+**Q16 — A.** Isolate failure at the individual-record level; let good work proceed and escalate only the broken piece with context. *(B: retries don't fix a structural data-quality failure, only transient ones. C: silently accepting bad data isn't error handling, it's disabling the check. D: escalating every batch for one bad record formalizes the exact bottleneck being complained about.)*
+
+**Q17 — A.** The Batches API is purpose-built for high-volume, latency-insensitive workloads like this one-time backfill. *(B: more concurrency on the synchronous path just hits the same rate-limit ceiling faster. C: changes the deliverable/scope rather than fixing how to process the full volume. D: cheaper model tier doesn't address the throughput/rate-limit bottleneck at all.)*
+
+**Q18 — A.** Fixed-order, low-ambiguity, fully-dependent steps fit explicit prompt chaining better than a dynamic loop that re-decides "what's next" every turn. *(B: subagents don't inherently reduce latency and add their own overhead. C: bigger context window doesn't structurally enforce order. D: a hook guards one wrong transition — an incomplete patch — rather than fixing the root architectural mismatch; you'd need one per step-boundary.)*
+
+**Q19 — A.** A single local process on the same machine needs no network stack, auth, or TLS — stdio is the right-sized transport; reserve HTTP/SSE for genuinely remote/multi-client needs. *(B: false — transport choice has real infrastructure/security consequences. C: strips safeguards while keeping the network exposure, a regression, not a fix. D: keeps unnecessary network-security scaffolding after removing the network boundary it was protecting.)*
+
+**Q20 — A.** Personal preferences should be user-scoped (follow the person); rules that must bind to everyone touching a specific repo should be project-scoped (`CLAUDE.md`/rules), so they travel with the repo. *(B: dumps a personal preference into shared config everyone else has to ignore. C: backwards on both assignments. D: skills, commands, and `CLAUDE.md` serve different mechanisms — no strict power hierarchy.)*
+
+**Q21 — A.** An explicit case-facts record/scratchpad decouples a load-bearing fact's survival from the fate of the surrounding raw history, so it's retrievable by design rather than by luck. *(B: refusing to ever compact just trades one cost for another — unbounded growth. C: wasteful, and the duplicated text is just as vulnerable to the same degradation. D: restates the very failure mode being worried about as if it were the fix.)*
+
+**Q22 — A.** The cross-domain trap: config was never lost or unclear, so more `CLAUDE.md` text can't be the fix — the real issue is context volume diluting effective attention on standing config over a long session. *(B: literally the team's refuted wrong instinct. C: fabricates a tool-description cause with no evidence in the scenario. D: fabricates subagent/fork usage the scenario never mentions.)*
+
+**Q23 — A.** Syntactic (schema) validation only guarantees shape; a separate semantic/business-rule layer (range/plausibility checks) is needed to catch values that are well-typed but nonsensical. *(B: integer vs. number is still purely syntactic — doesn't touch plausibility. C: temperature governs randomness, not domain-correctness; determinism ≠ correctness. D: false — a standard mitigation, semantic validation, directly exists and solves this.)*
+
+**Q24 — A.** Plan mode's value scales with actual ambiguity/risk; gating trivial, unambiguous, reversible edits behind it adds friction with no corresponding benefit — reserve it for genuinely higher-stakes or ambiguous work. *(B: "always safer" is refuted by the very complaint in the scenario. C: swaps one blanket gate for another, still ungated by actual risk. D: overcorrects by removing plan mode's real value for the cases it exists for.)*
