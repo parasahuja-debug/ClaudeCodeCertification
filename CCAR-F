@@ -331,6 +331,72 @@ C. Once examples are added, explicit criteria become unnecessary
 D. Rely on examples only for prose tasks; they don't work for code
 E. Include examples demonstrating the exact desired output format — location, issue, severity, suggested fix — to achieve consistent, actionable findings ✓
 
+
+---
+
+## Scenario 6: Structured Data Extraction
+
+**6.1 (Domain 4)** — Pipeline asks Claude to "respond with JSON" in plain text; downstream parsing breaks on markdown fences, trailing commentary, and occasional malformed syntax. What is the most reliable structural fix?
+A. Strengthen the prompt: "respond ONLY with valid JSON, no exceptions"
+B. Post-process the text with regexes that strip fences and repair syntax
+C. Define the extraction as a tool whose input schema is your JSON schema, and read the structured data from the `tool_use` block — guaranteeing schema-compliant output and eliminating JSON syntax errors
+D. Switch to XML output, which models format more carefully
+
+**6.2 (Domain 4)** — Several extraction tools (one per document type), incoming documents of unknown type. The model must always produce a structured extraction, choosing the appropriate schema itself, never conversational text. Which `tool_choice` setting is correct?
+A. `tool_choice: "any"` — the model must call a tool but may choose which, guaranteeing structured output while leaving schema selection to the model
+B. `tool_choice: "auto"` — the model decides whether to call a tool at all
+C. `tool_choice` forced to one named tool, applied to every document
+D. Omit `tool_choice`, since defaults handle this
+
+**6.3 (Domain 4)** — Invoice schema marks `vendor_tax_id` as required. On invoices that genuinely lack a tax ID, the model fabricates plausible-looking values. What is the schema-level fix?
+A. Add a prompt instruction: "never fabricate tax IDs"
+B. Post-validate tax IDs against a checksum and discard failures
+C. Lower the temperature to make fabrication less creative
+D. Make the field optional/nullable so the model can legitimately return null when the information is absent from the source document
+
+**6.4 (Domain 4)** — Extractions are always syntactically valid, yet invoices arrive where line items don't sum to the stated total, and values occasionally land in the wrong fields. What should you understand and do?
+A. Schema compliance was falsely advertised; file a bug
+B. Strict schemas eliminate syntax errors but not semantic ones — add semantic validation, e.g., extracting `calculated_total` alongside `stated_total` and flagging discrepancies with a `conflict_detected` boolean
+C. Make every field an unconstrained string so nothing can be wrong
+D. Re-run each extraction until the numbers happen to sum
+
+**6.5 (Domain 4)** — An extraction fails Pydantic validation with two specific field errors. You will retry. What should the retry request contain, and when would you skip retrying altogether?
+A. Just the instruction "try again more carefully"; skip retries on Mondays
+B. Only the validation errors, to keep the retry cheap; always retry at least five times
+C. The original document, the failed extraction, and the specific validation errors — enabling targeted self-correction; skip retrying when the required information is simply absent from the source, since no retry can produce it
+D. A different document, to give the model a fresh start
+
+**6.6 (Domain 4)** — An overnight batch of 10,000 documents completes with 200 failures: most are oversized documents that blew past context limits, plus some transient errors. What is the correct failure-handling workflow?
+A. Identify the failed requests by `custom_id` and resubmit only those, with modifications where needed — e.g., chunking the oversized documents before resubmission
+B. Resubmit the entire 10,000-document batch and keep whichever results arrive first
+C. Discard the 200 failures as an acceptable loss rate
+D. Switch the 200 failures to the synchronous API unchanged, where context limits don't apply
+
+**6.7 (Domain 2)** — A single `analyze_document` tool handles extraction, summarization, and claim verification, chosen by a `mode` parameter. The agent regularly picks the wrong mode and results are inconsistent. What is the recommended redesign?
+A. Add a fourth mode that automatically detects the right mode
+B. Document the modes more thoroughly inside the one description
+C. Reduce to two modes by merging extraction into summarization
+D. Split the generic tool into purpose-specific tools — `extract_data_points`, `summarize_content`, `verify_claim_against_source` — each with a defined input/output contract
+
+**6.8 (Domain 2)** — Your MCP extraction tool hits a parsing failure and returns "Error: could not parse document" as an ordinary successful text result. The agent then treats that sentence as document content. What is the correct MCP pattern?
+A. Prefix error text with "SYSTEM ERROR:" so the agent notices
+B. Return the failure with the MCP `isError` flag set, so the agent programmatically recognizes a tool failure instead of interpreting error prose as data
+C. Return an empty string on failure
+D. Throw an unhandled exception and let the connection drop
+
+**6.9 (Domain 5, select TWO)** — Your extraction system reports 97% aggregate accuracy, and leadership wants to cut human review of high-confidence extractions. Which TWO practices must precede that decision?
+A. Segment accuracy by document type and field — verifying consistent performance across all segments, since aggregate metrics can mask systematic failures on specific types ✓
+B. Accept the 97% aggregate as sufficient evidence on its own
+C. Implement stratified random sampling of high-confidence extractions for ongoing error-rate measurement and detection of novel error patterns ✓
+D. Stop measuring once review is reduced, to save cost
+E. Review only extractions the model itself flags as uncertain
+
+**6.10 (Domain 5, select TWO)** — Reviewer capacity covers only a fraction of extractions, so review attention must be routed where errors are likeliest. Which TWO practices form a sound routing design?
+A. Trust the model's raw self-reported confidence scores without validation
+B. Have the model output field-level confidence scores, then calibrate review thresholds against a labeled validation set ✓
+C. Review a fixed 1% of extractions chosen by submission order
+D. Route to human review the extractions with low calibrated confidence or ambiguous/contradictory source documents, prioritizing limited reviewer capacity where errors concentrate ✓
+E. Review only documents longer than ten pages
 ---
 
 # Answer Key & Short Rationales
@@ -404,3 +470,21 @@ E. Include examples demonstrating the exact desired output format — location, 
 | 5.8 | C | Few-shot examples with reasoning transfer nuanced judgment (accepted idiom vs. genuine bug) that prose alone failed to convey, and generalize to novel cases. |
 | 5.9 | A, D | Batch fits latency-tolerant, non-blocking workloads (A); blocking workflows must stay synchronous since batch has no latency SLA and can take up to 24 hours (D). |
 | 5.10 | B, E | Few-shot works best with a small number of targeted, reasoning-annotated examples (B) and examples that lock in exact output format for consistency (E) — not raw volume. |
+
+### Scenario 6
+
+| # | Ans | Why |
+|---|-----|-----|
+| 6.1 | C | Defining extraction as a tool call guarantees schema-compliant output by construction — no prose to parse, no fences or syntax errors possible. |
+| 6.2 | A | `tool_choice: "any"` forces a tool call every time (guaranteeing structured output) while leaving schema selection to the model's judgment. |
+| 6.3 | D | Nullable/optional fields give the model a legitimate way to say "absent," removing the structural pressure that causes fabrication. |
+| 6.4 | B | Schema compliance guarantees syntax, not truth; add semantic validation (e.g., calculated vs. stated total, conflict flag) as a separate check. |
+| 6.5 | C | Retry with the original document, failed extraction, and specific errors for targeted self-correction; skip retrying when the data is genuinely absent from the source. |
+| 6.6 | A | `custom_id` lets you identify and resubmit only the failed subset, with fixes tailored to each failure type (e.g., chunking oversized docs). |
+| 6.7 | D | Purpose-specific tools with defined contracts replace an overloaded single tool with a hidden mode parameter, fixing selection reliability. |
+| 6.8 | B | The MCP `isError` flag lets the harness and model recognize failure structurally, instead of misreading error prose as real data. |
+| 6.9 | A, C | Segment accuracy to catch masked failures (A); keep measuring via stratified sampling to catch drift and novel errors after review is reduced (C). |
+| 6.10 | B, D | Calibrate model-reported confidence against real labeled outcomes (B), then route review to low-calibrated-confidence or ambiguous-source cases where errors concentrate (D). |
+
+---
+
