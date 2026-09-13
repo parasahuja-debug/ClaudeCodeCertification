@@ -1,4 +1,8 @@
-# CCAR-F Advanced Drill — 
+# CCAR-F Advanced Drill — Session Log (Q1–Q38 + Harder Round H1–H20)
+
+
+Q1–Q38 follow the original 60-question blueprint-weighted plan (16/11/12/12/9 across the five domains). Partway through, difficulty was deliberately escalated — Q39 (a Domain 3 `allowed-tools` question) was posed but withdrawn/replaced rather than scored, and the "Harder Round" (H1–H20) that follows leans on combined-domain scenarios, red herrings with partial truth, and traps that require precise rather than directional understanding. Combined-domain questions are tagged accordingly (e.g., "Domain 1 / Domain 2").
+
 ---
 
 ## Questions
@@ -248,6 +252,297 @@ B) Keep plan mode mandatory for every change without exception, since more revie
 C) Replace plan mode with a `PreToolUse` hook that blocks all file-edit tool calls until a human manually approves each one in a terminal prompt, since this achieves the same review guarantee with less overhead.
 D) Disable plan mode globally and always use direct execution going forward, including for large migrations and multi-file refactors, since plan mode was clearly causing more friction than value here.
 
+### Q25 — Domain 1
+A multi-tenant SaaS admin agent calls a `run_sql_query` tool against a shared database — the tool executes whatever SQL is passed and returns the results. The team wants a safeguard against queries that accidentally scan or return data belonging to a tenant other than the one currently being serviced, even when the SQL itself is syntactically valid (e.g., missing a `tenant_id` filter).
+
+Where should the guardrail live, and what should it do?
+
+A) A `PreToolUse` hook that deterministically inspects (and blocks or rewrites) any `run_sql_query` call whose SQL doesn't include the correct `WHERE tenant_id = ...` clause for the active tenant — preventing the cross-tenant query from ever executing against the database at all.
+B) A `PostToolUse` hook that reviews the returned rows *after* the query has already executed against the full database, and strips out any rows belonging to the wrong tenant before showing results to the model.
+C) Rely on the system prompt to instruct the model to "always filter by the correct tenant_id" in every query it writes.
+D) Add more few-shot examples in the tool description showing correctly tenant-scoped SQL queries.
+
+### Q26 — Domain 2
+A customer-support agent has two tools: `close_ticket(ticket_id)` — marks a ticket resolved and notifies the customer — and `archive_ticket(ticket_id)` — removes a ticket from the active queue *without* notifying the customer (meant for spam/duplicate tickets). Both descriptions are terse: *"close_ticket: Closes a ticket."* and *"archive_ticket: Archives a ticket."* Agents have been observed calling `archive_ticket` on genuinely resolved customer issues, silently failing to notify the customer their issue was fixed.
+
+A) Rewrite both descriptions to be precise and disambiguating about behavior and intended use — clarify that `close_ticket` is for genuinely resolved issues requiring customer notification, while `archive_ticket` is specifically for spam/duplicate/non-actionable tickets and does *not* notify anyone.
+B) Rename `archive_ticket` to `close_ticket_v2`, to make clear it's a related, newer way of closing a ticket.
+C) Remove `archive_ticket` entirely, since having two similarly-named tools is inherently confusing.
+D) Merge both into a single tool `close_ticket(ticket_id, notify: boolean)`, since consolidating into one parameterized tool always removes ambiguity between similarly-named tools.
+
+### Q27 — Domain 5
+A document-extraction agent assigns a confidence score to each extracted field and auto-approves anything scoring ≥0.8, routing lower-confidence extractions to human review. Post-deployment, the team notices the scores are poorly calibrated: fields the model is actually *wrong* about get marked "0.9 confidence" nearly as often as fields it's right about.
+
+A) A model's self-reported confidence score isn't automatically well-calibrated. The team should empirically validate calibration (sampling actual outcomes at each confidence bucket) and, if the raw score isn't reliable, use a different, empirically-grounded proxy for routing to review, rather than trusting the number at face value.
+B) Simply raise the auto-approve threshold from 0.8 to 0.99, since a higher number is always safer regardless of whether the confidence score is calibrated at all.
+C) Confidence scores from a model are always perfectly calibrated by construction, so the extraction schema itself must be broken.
+D) Remove confidence scoring entirely and route every single extraction to human review.
+
+### Q28 — Domain 4
+An agent calls a third-party payment-processing tool to charge a customer's card. Occasionally the call times out due to network issues before a response arrives — it's genuinely unclear whether the charge succeeded. Current retry logic retries the identical charge request immediately on any timeout, up to 3 times. Customers have been double- and triple-charged when the original request had actually already succeeded.
+
+A) Use an idempotency key tied to the original charge attempt, so a retried request is recognized by the payment processor as the same operation rather than a new charge, and only retry (with backoff) failures that are actually safe to retry.
+B) Increase the number of retries from 3 to 10.
+C) Remove all retry logic entirely and require a human to manually re-initiate every payment that times out.
+D) Retry immediately with no backoff delay.
+
+### Q29 — Domain 3
+A developer is mid-way through a multi-hour Claude Code session implementing a complex feature across 15 files, with a lot of accumulated context about design decisions. Their laptop crashes. They want to continue exactly where they left off without re-explaining anything.
+
+A) Session resume — reloading the previous session's full conversation history and state from where it left off.
+B) `context: fork`, since forking creates a new isolated context.
+C) A `PreToolUse` hook configured to detect crashes and automatically re-run all previous tool calls from scratch.
+D) Increase `allowed-tools` scope.
+
+*(Follow-up discussed live: `context: fork` on subagents could achieve similar isolation goals if the tasks were structured as delegated, hand-off-and-return units — but fork suits self-contained work, while a single ongoing interactive thread, as described here, is what session resume/compaction actually address.)*
+
+### Q30 — Domain 1 (cross-domain trap — looks like Domain 4)
+A multi-turn coding assistant is asked to "add input validation to the function we just discussed." The model responds referencing a completely different function, as if it has no memory of the immediately preceding turn. The team suspects the extraction/schema definitions are confusing the model. Investigation reveals the frontend still displays the full conversation correctly, but a recent backend change now sends only the *latest* user message to the API on each call, dropping all prior turns from the `messages` array.
+
+A) This isn't a schema/prompt-engineering issue — the API is stateless, so if the harness omits prior turns, the model genuinely has no access to "the function we just discussed," no matter how well any schema is engineered. The fix is restoring full conversation history in every request.
+B) The team's hypothesis is right — redesign the tool schema so the model can infer the missing prior context through better-structured fields.
+C) This is a tool description problem — the code-editing tool's description must not clearly explain what "the function we just discussed" refers to.
+D) Increase the model's temperature so it "tries harder" to recall context from training data.
+
+### Q31 — Domain 2 *(select TWO)*
+An internal HR chatbot has one MCP tool, `employee_action(employee_id, action, details)`, where `action` can be `"update_salary"`, `"update_address"`, `"terminate_employment"`, or `"send_reminder"` — each with very different `details` shapes and blast radii. Separately, when a call fails, the tool returns a plain string `tool_result` like `"Could not complete action"` with no `is_error` flag set — so the agent sometimes assumes a failed termination request actually succeeded.
+
+A) Split `employee_action` into purpose-specific tools (`update_salary`, `update_address`, `terminate_employment`, `send_reminder`), each with a narrow, correctly-shaped schema.
+B) Set `is_error: true` on the `tool_result` whenever an action fails.
+C) Add a `PostToolUse` hook that automatically retries any failed action up to 3 times before reporting a result to the model.
+D) Improve the single `employee_action` tool's description with more detailed prose about all four actions and their differing risk levels.
+E) Convert `terminate_employment` specifically into an MCP resource, since resources are simpler for the model to reason about than tools.
+
+### Q32 — Domain 5
+A writing assistant has a system-level default: *"always write in a formal, professional tone."* A user explicitly says: *"For this one email, make it casual and use exclamation marks — I know it's unusual for this bot."* The agent writes the email in its default formal tone anyway.
+
+A) Explicit, clearly-scoped user instructions — especially stated one-off exceptions — should generally take precedence over general/default system-level guidance.
+B) System-level defaults should always override any user request, no matter how explicit.
+C) The agent should ask a clarifying question every time a user's instruction seems to conflict with a system default, rather than ever directly complying.
+D) This is unrelated to instruction precedence — it's a temperature/sampling issue.
+
+### Q33 — Domain 1
+Claude's API response gets cut off by hitting the `max_tokens` limit while emitting a `tool_use` block — the tool's input JSON is incomplete. `stop_reason` is `"max_tokens"`. The harness blindly parses the incomplete input and passes it to the tool executor.
+
+A) Check `stop_reason` before treating any `tool_use` block as complete and actionable — if `stop_reason` indicates truncation rather than `"tool_use"`, don't execute the tool with potentially incomplete input; retry with more budget or surface the issue instead.
+B) Since a `tool_use` block is present regardless of `stop_reason`, the harness should always execute it immediately — `stop_reason` is purely informational.
+C) Increase the temperature so the model completes its response faster and avoids hitting `max_tokens`.
+D) Add a hook that fixes malformed JSON in `tool_use` inputs after the fact by guessing the missing fields.
+
+### Q34 — Domain 4
+A structured-data-extraction pipeline needs the model to *always* call the `extract_fields` tool — never respond with plain text — for every document, since downstream code expects a `tool_use` block every time. On unusually formatted documents, the model occasionally responds with plain text instead, breaking the pipeline.
+
+A) Force the specific `extract_fields` tool via `tool_choice`, guaranteeing a `tool_use` block every time — and design the schema so uncertain/unparseable cases can still be represented honestly (nullable fields, a "parse_issue" field) rather than relying on the model falling back to prose.
+B) Set `tool_choice` to `"auto"`, since "auto" is the most flexible setting.
+C) Leave `tool_choice` unset and add a system-prompt instruction saying "always use the extract_fields tool."
+D) Increase the model's context window.
+
+### Q35 — Domain 3
+A team built `/deploy`, a command taking a required environment argument, with no `argument-hint` configured. Behavior on missing/ambiguous input is inconsistent — sometimes the agent asks, sometimes it guesses `"production"` by default, once nearly causing an unconfirmed production deploy.
+
+A) Configure an `argument-hint` on `/deploy` (e.g., `/deploy <environment: staging|production>`), surfacing the expected argument shape at invocation time.
+B) Remove `/deploy` entirely and require natural-language deploy requests instead.
+C) Add a `PreToolUse` hook that silently defaults to `"staging"` whenever the argument is ambiguous or missing.
+D) Increase the model's context window so it can infer the intended environment from unrelated earlier conversation.
+
+### Q36 — Domain 2 (with Domain 4/5 overlap)
+A tool `provision_vm(config)` can fail for three different reasons — transient throttling, invalid config, or quota exceeded — but currently always just sets `is_error: true` with a generic string message. The agent retries all failures identically up to 3 times, wasting effort on the two non-transient causes.
+
+A) Extend structured error metadata beyond a boolean to include an error category/code (`"transient"`, `"invalid_config"`, `"quota_exceeded"`), so the agent can apply the right response per category instead of treating every failure identically.
+B) Since `is_error: true` is already set correctly, no further changes are needed.
+C) Remove `is_error` entirely and encode all failure information only in a natural-language string message.
+D) Increase retries to 5 for all failure types.
+
+### Q37 — Domain 1
+A "research and answer" agent handles both quick lookups and open-ended investigations (e.g., "investigate why our conversion rate dropped") whose steps can't be known in advance. A team hard-codes the entire agent as one fixed 5-step chain applied uniformly to every question, including the open-ended ones.
+
+A) This over-applies prompt chaining to a task that's actually open-ended and branches on intermediate findings — which hypothesis to check next depends on what earlier checks revealed, so it can't be one fixed sequence. This calls for dynamic decomposition, reserving fixed chaining for requests that really are fixed-order.
+B) The fixed 5-step chain is correct for all cases, since prompt chaining is strictly more reliable than dynamic decomposition in every situation.
+C) The problem is unrelated to chaining vs. decomposition — the real issue is unclear tool descriptions.
+D) Add more steps to the fixed chain (15 instead of 5) to try to cover more possible investigative paths.
+
+### Q38 — Domain 4
+A support-ticket priority classifier is given 10 few-shot examples — all "high priority" (server outages, security breaches), simply because that's what was on hand. The model now over-classifies ambiguous low/medium tickets as "high priority."
+
+A) The few-shot set is unrepresentative of the actual class distribution and decision boundary. The fix is a balanced set spanning all priority levels, including boundary cases, to teach the actual distinction — not just one class.
+B) Add many more high-priority examples (50 instead of 10).
+C) Remove few-shot examples entirely, since few-shot prompting is inherently unreliable for classification.
+D) The real issue is `tool_choice` — switching from `"auto"` to `"any"` would fix the bias.
+
+*(Note: Q39, a Domain 3 `allowed-tools` question about a read-only documentation agent, was posed here but withdrawn at the user's request to raise difficulty, and replaced by the Harder Round below rather than scored.)*
+
+---
+
+## Harder Round (H1–H20)
+
+Difficulty deliberately escalated on request: combined-domain scenarios, partially-true red herrings, and traps requiring precise rather than directional understanding.
+
+### H1 — Domain 1 / Domain 4
+A voice agent uses `lookup_and_update_ticket(ticket_id, updates)`, which both reads a ticket and applies any provided updates in the same call. After raising temperature from 0 to 0.7 for "more natural" responses, the agent occasionally includes `status: "closed"` even when just looking something up. An engineer's theory: "temperature is randomly injecting extra fields — revert to 0."
+
+A) The theory is plausible but incomplete — temperature could contribute somewhat, but the more likely root cause is that the tool conflates a safe read and a mutating write behind one call with no structural separation. Fix: split into `get_ticket` (read-only) and `update_ticket_status` (mutation) — this removes the ambiguity regardless of temperature.
+B) The engineer is correct — reverting to temperature 0 fully and reliably resolves the issue; no tool redesign needed.
+C) Add an `is_error` flag so the agent can detect after the fact that it incorrectly closed a ticket and reopen it.
+D) Add more few-shot examples of correctly-formed read-only lookup calls; the tool's combined read/write design isn't a factor.
+
+### H2 — Domain 5
+A fraud-detection agent's escalated-queue review sampling was cut from 20% to 5% after 6 stable months — that queue's performance stayed fine. Separately, a much smaller self-flagged "borderline, confidence 0.55–0.65" (not escalated) bucket is only audited weeks later. Fraud quietly rises specifically in that delayed-audit bucket.
+
+A) The reduced 5% sampling on the escalated queue was the mistake — it should have stayed at 20% regardless of which queue is affected.
+B) The team conflated two different monitoring concerns: sampling rate on a proven queue vs. timeliness of review for self-flagged uncertain-but-not-escalated cases. The borderline-non-escalated bucket had the weakest monitoring loop in *timeliness*, not sampling percentage — the fix is near-real-time review of that bucket, not touching the escalated queue's rate.
+C) The escalation confidence threshold is miscalibrated and should be lowered — purely a threshold-tuning problem.
+D) The tool's schema lacks a required "related transaction ring ID" field.
+
+### H3 — Domain 1 / Domain 3 *(select TWO)*
+A shared "onboarding assistant" serves many new hires simultaneously, each needing (1) zero cross-session leakage of history/team details, and (2) a shared, centrally-updatable set of general onboarding instructions.
+
+A) Give each new hire their own separate session (not shared/resumed).
+B) Maintain general onboarding instructions in project/org-level `CLAUDE.md`, loaded fresh by every session.
+C) Use one shared long-lived session, relying on prompting to "forget what the previous person told you."
+D) Use `context: fork` from one master session for every hire, since forking guarantees isolation between children while still letting updates to the master instantly propagate to already-forked children.
+E) Store general onboarding instructions in a scratchpad/case-facts file inside the *first* hire's session.
+
+### H4 — Domain 1
+A harness lets the model call 3 independent tools in parallel in one turn (`tool_use` ids `toolu_1/2/3`), each executed by the harness.
+
+A) Append the assistant's message with all three `tool_use` blocks, then a **single** new user message containing three separate `tool_result` blocks, one per id.
+B) Append the assistant's message, then three separate consecutive user messages, each with one `tool_result` block.
+C) Return only the first tool's result; drop the other two.
+D) Combine all three results into one summarized string in a system message.
+
+### H5 — Domain 2
+A pilot weather agent has `get_metar(airport_code)` (static, existing METAR text) and `assess_flight_risk(route, weather_data)` (computes a synthesized risk score from varying inputs). An engineer converts *both* to MCP resources, reasoning "resources are just generally more efficient."
+
+A) Wrong to convert both — `get_metar` fits a resource (static, existing content); `assess_flight_risk` performs a computation deriving a new value from varying inputs, which is an action and mischaracterized as a resource.
+B) Correct — resources are always more efficient regardless of what they represent.
+C) Neither should be a resource; merge both into one overloaded tool `get_weather_info(mode)`, since consolidating always reduces confusion.
+D) The real issue is unrelated — add a `confidence` field to `assess_flight_risk`'s schema.
+
+### H6 — Domain 4
+10,000 requests are submitted via the Batches API for sentiment classification. An engineer assumes results come back in submission order and plans to zip input/output lists by position.
+
+A) Unsafe — the Batches API doesn't guarantee result order. Use an explicit `custom_id` per request and correlate by that identifier in the results, not by position.
+B) Safe — the Batches API always preserves submission order.
+C) Batches API requests can't include custom identifiers at all, so switch back to the synchronous API to preserve ordering.
+D) Lower the temperature so outputs are generated in a more order-preserving way.
+
+### H7 — Domain 3 / Domain 5
+A team now runs naive automatic compaction ("summarize the conversation so far") whenever context grows large. A critical mid-session decision ("don't use library X, licensing conflict — use Y") got dropped from a summary because it looked like a minor aside, and library X was later reintroduced, shipping a licensing violation.
+
+A) Generic summarization prioritizes what looks narratively important, not what's load-bearing for future correctness. Fix: maintain an explicit, separately-tracked case-facts/decision log, updated as decisions are made and preserved verbatim across compactions — not reconstructed after the fact by a generic summarizer.
+B) Compaction should be disabled entirely — this proves it's unsafe.
+C) Compact more frequently (every 10 messages instead of 50).
+D) The real problem is a missing required `license_type` field in the `library_dependency` tool's schema — purely a Domain 4 issue.
+
+### H8 — Domain 4 *(select TWO)*
+A medical intake agent has required fields `pain_level: integer` and `symptom_onset_date: string (ISO 8601)`. Many patients don't report a pain level (causing fabrication) or give vague onset timing like "a few weeks ago" (causing fabricated dates or failed extraction).
+
+A) Make `pain_level` nullable/optional.
+B) Give `symptom_onset_date` an honest home for imprecision — an optional `onset_approximate: string` field, with the strict date made optional when only a fuzzy description is available.
+C) Add extensive few-shot examples of patients who *do* report exact values.
+D) Force the intake tool via `tool_choice`, ensuring it's always called regardless of vagueness.
+E) Remove both fields from the schema entirely.
+
+### H9 — Domain 5
+A legal-research agent's case-facts block says "Client's jurisdiction is New York; apply NY statute of limitations rules." The client's attorney later explicitly says: "disregard NY rules for this one sub-question — the contract's choice-of-law clause points to Delaware for this issue specifically." The agent refuses, citing "the established case fact," and keeps applying NY rules.
+
+A) The agent over-applied case-facts precedence. That principle guards against a *lower-authority*, unreliable source silently overwriting a verified fact — not against a legitimate, well-reasoned, narrowly-scoped correction from the client's own attorney, which is exactly the kind of explicit instruction that should be honored.
+B) Correct — case-facts should never be overridden once established, regardless of source, since consistency matters more than accuracy in legal contexts.
+C) This is a Domain 5 sampling/review-rate problem.
+D) This is a tool-description problem with the `apply_statute` tool.
+
+### H10 — Domain 1 / Domain 3
+Custom compaction keeps the most recent N messages verbatim and replaces older ones with a summary. Occasionally the next API call fails validation because the verbatim tail includes a `tool_result` whose matching `tool_use` got swept into the summarized portion, leaving it orphaned.
+
+A) Compaction boundaries must never split a `tool_use`/`tool_result` pair — both must stay in the verbatim tail together, or both must go into the summarized portion together.
+B) Wrap the malformed request in a retry loop until it happens to succeed.
+C) Include the orphaned `tool_result`'s content in the summary text as prose, while still also sending it as a separate block.
+D) Ignore it — orphaned `tool_result` blocks are automatically stripped by the API without causing failures.
+
+### H11 — Domain 2
+A logistics agent reads a delivery truck's real-time GPS location (changes every few seconds, zero side effects to read). An engineer argues: "not static, so it can't be a resource — must be a tool."
+
+A) Wrong — the engineer conflates "static" with "read-only/no side effects." A resource can represent live, frequently-changing data as long as reading it has no side effects and isn't computing a derived value from varying inputs. Change-frequency isn't the determining property.
+B) Correct — resources must represent unchanging content only.
+C) The real issue is unrelated — GPS coordinates should be a required schema field.
+D) The fix is lowering the GPS feed's polling frequency.
+
+### H12 — Domain 2 / Domain 4
+A `handle_customer_request(request_type, details)` tool sees the model inventing ad-hoc `request_type` strings that don't match any real category, silently no-oping downstream. The team spends a week writing an exhaustive prose description of every valid value — the problem persists at the same rate.
+
+A) The actual defect is very likely the schema itself — if `request_type` is a loose `string` rather than a proper `enum`, no prose can substitute for a structural constraint; better wording nudges the rate down but doesn't guarantee it, since the model retains genuine latitude to emit any string when the schema allows any string.
+B) The team's approach was correct and sufficient — sufficiently detailed prose is functionally equivalent to a structural enum constraint.
+C) This is a Domain 5 monitoring problem — increase human sampling review of these calls.
+D) Remove `handle_customer_request` entirely via `allowed-tools`.
+
+### H13 — Domain 3
+A team implements "run our pre-merge checklist" as a one-line command `/premerge` ("run tests, check lint, check TODOs, generate coverage report"), with no mechanism for also referencing several pages of accumulated tribal knowledge about historically-missed edge cases. The agent completes the mechanical steps but keeps missing those edge cases.
+
+A) Convert this into a skill rather than a plain command — skills package bundled supporting content alongside a capability, which a bare command isn't designed to carry.
+B) Make the one-line command's text much longer, pasting the entire document into the single instruction line, since commands and skills are functionally identical containers.
+C) The real issue is an unclear test-running tool description.
+D) Abandon structured invocation; have the developer manually re-paste the document before every check.
+
+### H14 — Domain 1
+A support orchestrator can delegate to subagents via `Task`. Under high volume it spawns 20+ concurrent subagents, overwhelming compute/rate limits and causing throttling failures.
+
+A) Add a hook/harness-level guardrail capping concurrent `Task` invocations, deterministically queuing or rejecting beyond the limit, rather than trusting the model's own judgment about volume.
+B) Remove `Task` delegation entirely.
+C) Instruct the model via system prompt to "not spawn more than 5 subagents at once."
+D) Increase API rate limits to match whatever concurrency the model decides to use.
+
+*(Follow-up discussed live: the cap itself is silent — the orchestrator also needs to detect a queued/rejected `Task` call and relay wait-state info to the waiting customer; and the cap alone doesn't solve throughput at scale — triage before delegation, ordered queueing instead of flat rejection, async handoff for long waits, and deliberately-provisioned (not unconditionally scaled) capacity all complement it.)*
+
+### H15 — Domain 3 *(select TWO)*
+A team wants all committed Python files to pass `black --check` and have no unused imports, without exception, even under pressure.
+
+A) Document the requirement clearly in `CLAUDE.md`, so the model understands and proactively attempts compliance.
+B) Add a `PreToolUse`/pre-commit hook that actually runs `black --check` and an unused-import linter, deterministically blocking the commit on failure.
+C) Skip `CLAUDE.md` entirely and rely only on the hook, since documentation is unnecessary once enforcement exists.
+D) Convert the workflow into a skill instead of a hook, since skills alone guarantee deterministic enforcement.
+E) Skip the hook and just make the `CLAUDE.md` instruction maximally emphatic instead.
+
+### H16 — Domain 1 / Domain 4 *(select TWO)*
+A fixed, branchless 4-step weekly compliance-summary process runs identically for 50,000 accounts, currently via a dynamic agentic loop over the synchronous API, one account at a time — slow and expensive.
+
+A) Restructure the per-account process as an explicit prompt chain instead of a dynamic loop.
+B) Submit the (now-chained) work via the Batches API instead of the synchronous API.
+C) Increase the model's context window so all 50,000 accounts fit in one conversation.
+D) Delegate each account to a separate `Task` subagent, since subagent delegation is the correct way to handle any workload with more than one account.
+E) Lower temperature to 0 for all requests, since determinism is what reduces cost at scale.
+
+### H17 — Domain 2 / Domain 5
+A tool returns `authenticity_score: float` and a `verified: bool` set true whenever score > 0.5. Scores near 0.5 (0.48–0.52) are essentially coin-flips against ground truth, but the agent treats every `verified` value as equally certain.
+
+A) Don't collapse the continuous score into a boolean inside the tool — return the raw score or an explicit band ("high_confidence_verified," "borderline," "high_confidence_rejected"), and route borderline cases to human review while auto-processing clear cases.
+B) Add more few-shot examples of clearly-authentic and clearly-fake documents.
+C) A boolean `verified` field is sufficient regardless of the underlying score.
+D) Lower the threshold from 0.5 to 0.3.
+
+### H18 — Domain 1
+A developer skips the `tools` API parameter entirely, describing tool schemas as plain text in the system prompt and asking the model to emit matching JSON in its response, which the harness then parses out of free text.
+
+A) This forgoes native tool use's structural guarantees — a proper `tool_use` block, a `stop_reason` signaling clear intent, and correlation IDs — in favor of fragile manual parsing of JSON possibly embedded in prose.
+B) No meaningful difference — both approaches produce JSON the harness must handle.
+C) The only difference is cost.
+D) This is strictly better — more flexibility for the model to deviate from the schema is an advantage for creative reasoning.
+
+### H19 — Domain 3
+A refactoring agent needs to evaluate two fundamentally different, substantial approaches (microservices extraction vs. in-monolith modularization) side by side before choosing one. Exploring both in one linear conversation would double context and risk cross-contamination.
+
+A) Use `context: fork` to branch two isolated explorations from a shared starting point, then bring summaries back to the primary session for comparison — exactly the parallel, independent-exploration case fork is for.
+B) Use repeated compaction within one linear session, compacting away Approach 1 once Approach 2 begins.
+C) Explore both in the same linear conversation, trusting the model to keep them separate.
+D) Use two entirely separate sessions with no shared starting context at all.
+
+### H20 — Domain 1 / Domain 5 (cross-domain trap, closing the set)
+A power-grid monitoring agent, run continuously for days with no restart or compaction, increasingly fails to flag genuinely anomalous readings. The team suspects calibration/sampling drift — but investigation finds the threshold and sampling rate are both unchanged; the session has simply accumulated enormous routine sensor-log volume, uncompacted.
+
+A) Not a calibration/monitoring problem — the actual cause is context degradation from an ever-growing, uncompacted session crowding out attention to rarely-invoked instructions. Fix: session hygiene (periodic compaction or restart boundaries), not threshold or sampling changes the investigation already ruled out.
+B) Correct diagnosis — recalibrate the anomaly threshold empirically regardless of the investigation's findings.
+C) Convert the anomaly-detection logic into an MCP resource instead of a tool.
+D) Add more few-shot examples of anomalous sensor readings.
+
 ---
 
 ## Answers & Rationale
@@ -299,3 +594,75 @@ D) Disable plan mode globally and always use direct execution going forward, inc
 **Q23 — A.** Syntactic (schema) validation only guarantees shape; a separate semantic/business-rule layer (range/plausibility checks) is needed to catch values that are well-typed but nonsensical. *(B: integer vs. number is still purely syntactic — doesn't touch plausibility. C: temperature governs randomness, not domain-correctness; determinism ≠ correctness. D: false — a standard mitigation, semantic validation, directly exists and solves this.)*
 
 **Q24 — A.** Plan mode's value scales with actual ambiguity/risk; gating trivial, unambiguous, reversible edits behind it adds friction with no corresponding benefit — reserve it for genuinely higher-stakes or ambiguous work. *(B: "always safer" is refuted by the very complaint in the scenario. C: swaps one blanket gate for another, still ungated by actual risk. D: overcorrects by removing plan mode's real value for the cases it exists for.)*
+
+**Q25 — A (miss — answered B).** A `PreToolUse` hook stops the cross-tenant query before it ever executes against the shared database. *(B: by the time a `PostToolUse` hook runs, the query already executed against the full database — the cross-tenant rows were already read out of storage, which is itself the exposure, even if filtered before the model sees them. C: soft prompt reliance, same recurring failure class. D: few-shot nudges typical accuracy but gives no deterministic guarantee against the one dangerous case.)*
+
+**Q26 — A.** The terse, non-disambiguating descriptions are the literal causal issue — clarifying behavior and use case for each fixes it directly. *(B: implies it's just a newer version of the same action, making things worse. C: deletes a genuinely-needed capability instead of clarifying it. D: reintroduces exactly the "meaningful behavior gated by a parameter" danger from Q3, just inverted — merging two already-distinct tools back into one.)*
+
+**Q27 — A.** Self-reported confidence isn't automatically calibrated — validate empirically and use a better-grounded proxy if it isn't. *(B: assumes the score at least ranks correctness reliably, which the scenario's own evidence undercuts. C: states the opposite of the tested principle as fact. D: the familiar "throw out a partially-useful signal" overcorrection.)*
+
+**Q28 — A.** An idempotency key makes retries safe regardless of whether the original attempt actually succeeded — the real defect was an unsafe retry on a side-effecting operation, not retry count or speed. *(B: more attempts on unsafe retry logic multiplies the exposure. C: overcorrects by discarding retries' real value instead of making them safe. D: backoff timing is a real but unrelated concern to the duplicate-charge bug.)*
+
+**Q29 — A.** Session resume restores full history/state after an interruption — the exact need described. *(B: fork creates new isolation, the opposite of the continuity needed. C: hooks aren't a recovery mechanism, and blindly replaying tool calls would re-trigger side effects. D: `allowed-tools` is orthogonal to restoring interrupted context.)*
+
+**Q30 — A.** The API is stateless — if a turn isn't in the `messages` array, its content is unavailable to the model on that call, full stop; no schema change can recover information never transmitted. *(B: asks prompt engineering to solve a data-transmission problem — a category error. C: fabricates an unrelated cause. D: temperature doesn't affect what information is available to the model.)*
+
+**Q31 — A and B.** Splitting into purpose-specific tools fixes the blast-radius/ambiguity problem; structured `is_error` fixes the false-success-reporting problem — two independent defects, two independent fixes. *(C: retrying a structural validation failure like a bad `employee_id` doesn't help, and doesn't touch the reporting bug either. D: better prose in the same overloaded tool is the same half-fix trap as Q3. E: termination has real side effects — the opposite of what a resource is for.)*
+
+**Q32 — A.** A clearly-scoped, explicit, one-off user exception should be recognized and honored, not overridden by a standing default meant for the absence of more specific direction. *(B: makes the default totally unoverridable, defeating the point of a default. C: unnecessary friction on an unambiguous request. D: temperature has no bearing on instruction precedence.)*
+
+**Q33 — A.** `stop_reason` signals whether a turn actually completed; `"max_tokens"` means the `tool_use` block may be truncated/malformed and shouldn't be executed as-is. *(B: treats `stop_reason` as decorative, which is precisely the wrong mental model. C: temperature doesn't control length or truncation risk in a reliable way. D: fabricating missing fields to force execution is worse than refusing — especially dangerous for side-effecting tools.)*
+
+**Q34 — A.** Forcing the specific tool guarantees a `tool_use` block every time; pairing it with an honest "parse issue" schema slot means the model doesn't need to escape into prose on hard documents. *(B: `"auto"` is literally the setting that permits the failure being described. C: soft instruction, same reliability gap. D: context window is irrelevant to whether a tool call is compelled.)*
+
+**Q35 — A.** `argument-hint` surfaces the expected shape at invocation time, before ambiguity can reach the agent. *(B: throws out a useful structured mechanism instead of configuring it properly. C: resolves ambiguity silently in one arbitrary direction — the same risk pattern that caused the near-miss. D: irrelevant to a required, explicit argument.)*
+
+**Q36 — A.** A single boolean only says "it failed," not "why" — a category/code lets the agent apply the right response (retry, correct, escalate) per actual cause. *(B: contradicted directly by the scenario's own stated waste. C: a regression back into unreliable text-parsing. D: more retries do nothing for causes that fail identically every time.)*
+
+**Q37 — A.** The deliberate inverse of Q18: this task genuinely branches on intermediate findings, so a fixed chain can't represent it — dynamic decomposition is correct here, while Q18's fixed workflow correctly called for chaining. Neither approach is universally better; the task shape decides. *(B: over-generalizes Q18's lesson into "chaining always wins." C: fabricates an unrelated cause. D: no fixed-length enumeration substitutes for genuine adaptivity.)*
+
+**Q38 — A.** An unbalanced few-shot set (all one class) implicitly teaches a skewed prior; a representative set spanning the boundary teaches the actual distinction. *(B: doubling down on the same skewed composition reinforces the bias. C: overcorrects — well-curated few-shot isn't inherently unreliable. D: `tool_choice` governs whether/which tool is called, not labeling behavior within it.)*
+
+---
+
+### Harder Round — Answers & Rationale
+
+**H1 — A.** Temperature is a partially-true red herring — it could nudge variability, but the real defect is a tool conflating a safe read and a mutating write with no structural separation; splitting removes the ambiguity regardless of temperature. *(B: "fully and reliably resolves... no redesign needed" is the absolute that breaks this — determinism doesn't fix a structurally ambiguous decision surface. C: `is_error` reports execution failure, not "executed successfully but produced an undesired outcome" — a genuine misunderstanding of what the flag means. D: real technique, wrong layer, same as improving `db_operation`'s description in Q3.)*
+
+**H2 — B.** The stated harm occurred entirely in the delayed-audit, self-flagged-but-not-escalated bucket — a *timeliness* gap, not a *rate* gap; the escalated queue's own performance never degraded. *(A: the tempting near-miss — echoes Q10's real lesson but diagnoses the wrong bucket, since the escalated queue is explicitly stated as still performing fine. C: the absolutism — "purely a threshold problem" — ignores the stated timeliness mechanism entirely. D: fabricates an unrelated schema cause.)*
+
+**H3 — A and B.** Separate sessions guarantee isolation by construction (no shared object to leak through); org-level `CLAUDE.md` propagates updates to every future session with zero cross-session mechanism needed. *(C: same soft-instruction anti-pattern, and worse, "no architecture at all." D: the sharp trap — forking does NOT let a master's later updates propagate backward into already-forked children; a fork's context is independent of the master from the fork point forward, so the claimed mechanism is factually wrong. E: misapplies case-facts persistence — a single-session mechanism — to a cross-session broadcast problem, which is what project config is actually for.)*
+
+**H4 — A.** All `tool_result` blocks answering one assistant turn's parallel `tool_use` blocks belong together in a single subsequent user message. *(B: the precise trap — splitting into separate consecutive messages doesn't represent "these all answer the same prior turn," a structural error, not a stylistic one. C: every `tool_use` obligates an answer; dropping two leaves the exchange malformed. D: system messages can't carry `tool_result` blocks, and summarizing discards the required `tool_use_id` correlation.)*
+
+**H5 — A.** Static existing content (METAR) fits a resource; a computed, input-varying result (risk score) is an action and belongs as a tool. *(B: the exact fallacy from Q15's wrong answer, restated as the engineer's own reasoning. C: reverses the Q3/Q7/Q31 lesson — merging distinct, differently-behaved capabilities back into one parameterized tool reintroduces the very danger those questions warned against. D: real idea, no connection to the actual classification question being asked.)*
+
+**H6 — A.** Batch processing is typically asynchronous and doesn't guarantee result order — `custom_id` is the correct, purpose-built correlation mechanism. *(B: the exact false assumption being tested. C: factually wrong — the Batches API does support custom identifiers, which is the real fix; abandoning batching entirely is a drastic overcorrection. D: temperature has nothing to do with result ordering.)*
+
+**H7 — A.** Generic "summarize the conversation" has no signal for what's load-bearing vs. narratively minor; an explicit, separately-maintained decision log preserved verbatim through compaction is the fix — synthesizing Q13 (compaction is right, done properly) with Q21 (case-facts need their own mechanism). *(B: overcorrects — the actual defect is naive implementation, not compaction itself. C: running the same signal-less process more often doesn't add the missing signal — same category error as "more retries"/"more of one class of few-shot." D: too narrow a fix for a general class of problem, and misattributes the layer.)*
+
+**H8 — A and B.** Both are the same nullable/optional-schema principle from Q2, applied to two distinct real gaps — missing pain level, and imprecise onset timing given its own honest structural home. *(C: same few-shot trap as Q2/Q9/Q38 — doesn't create a valid slot for absence or vagueness. D: the callback trap — forcing `tool_choice` fixed a *different* earlier problem (the model not calling the tool at all); here the tool is already being called every time, the fabricated *values* are the issue, which `tool_choice` doesn't touch. E: overcorrects by discarding fields that are genuinely valuable when patients do report them precisely.)*
+
+**H9 — A.** Case-facts precedence (Q5) exists to block a *lower-authority, unreliable* source from silently overwriting a verified fact — not to refuse a legitimate, well-justified, narrowly-scoped correction from the actual human authority on the matter (the client's attorney). This is Q32's principle (explicit-instruction precedence), correctly recognized as the one that actually governs here despite superficially resembling Q5's scenario. *(B: makes the over-generalization explicit, and "consistency over accuracy in legal contexts" is separately bad advice on its own terms. C and D: fabricate unrelated causes.)*
+
+**H10 — A.** A `tool_use`/`tool_result` pair must be treated as an atomic unit at compaction boundaries — a `tool_result`'s validity depends entirely on its correlated `tool_use` still being present. *(B: a deterministic structural failure will fail identically on every retry. C: duplicating content into the summary doesn't remove the still-invalid orphaned block. D: directly contradicted by the scenario's own stated validation failure.)*
+
+**H11 — A.** "Static" was never the actual resource-vs-tool criterion — "read-only/no side effects" is; a live GPS feed is still a passive read of existing (if constantly updating) state. *(B: states the over-generalization as the rule, which would wrongly exclude nearly all live dashboards/sensor feeds from ever being resources. C and D: fabricate unrelated causes disconnected from the classification question actually being asked.)*
+
+**H12 — A.** If `request_type` is a free-form string rather than an `enum`, no amount of prose creates a structural constraint — the model retains genuine latitude to emit any string. The week of documentation effort improved the wrong lever, and its continued failure is itself evidence of that. *(B: states the false prose-equals-structure equivalence the scenario's own outcome already disproves. C: after-the-fact detection, doesn't address the generative cause. D: removes the agent's core capability instead of fixing the schema.)*
+
+**H13 — A.** Skills bundle substantial supporting content alongside a capability — exactly the missing piece; a bare command is a lightweight trigger, not designed to carry multi-page reference material. *(B: technically might semi-function, but the stated justification — "commands and skills are functionally identical, length is the only difference" — is the actual false architectural claim being tested. C: fabricates an unrelated tool-description cause. D: abandons reusable tooling for manual, repetitive, error-prone human effort.)*
+
+**H14 — A.** A deterministic concurrency cap removes the "how many subagents is reasonable" judgment call from the model entirely, especially since that judgment degrades exactly under the high-load conditions described. *(B: overcorrects — delegation retains real value for genuinely complex tickets. C: soft self-limiting instruction, fails under the exact pressure it's meant to survive. D: inverts the correct direction of control — trusting an uncalibrated variable and scaling to match it rather than constraining it.)*
+
+**H15 — A and B.** Documentation shapes proactive compliance and reduces wasted attempts; the hook provides the actual deterministic guarantee — complementary layers, not redundant ones. *(C: the sharp trap — over-rotates the "hooks over soft rules" lesson into "soft rules are worthless," but documentation still has real, independent value (proactive compliance, human-readable standard) alongside real enforcement. D: skills package instructions, but that content is still natural language the model interprets — not an inherent deterministic gate the way a hook is. E: restates the core anti-pattern of the entire drill — no wording is a substitute for actual enforcement.)*
+
+**H16 — A and B.** Two distinct problems, two distinct fixes: chaining removes unnecessary per-account re-planning overhead (Q18's lesson at scale); batching fixes the across-account synchronous-throughput/cost problem (Q17's lesson). Neither alone solves both. *(C: conflates context size with batch processing — an incoherent mechanism for this need. D: direct callback to Q14 — subagent delegation is not "correct for any workload with more than one item," and would multiply overhead on 50,000 simple, identical-shaped tasks. E: temperature doesn't affect request cost or throughput at all.)*
+
+**H17 — A.** Preserving the graduated score (or an explicit confidence band) lets escalation logic route genuinely borderline cases to review while auto-processing confident ones — collapsing to a boolean destroys exactly the information needed to do that. *(B: same few-shot trap as Q9/Q38/H8 — doesn't eliminate genuinely ambiguous cases near a true boundary. C: directly contradicted by the scenario's own stated finding. D: relocates the boundary rather than fixing the underlying issue — scores near *whatever* threshold is chosen will still be coin-flip-accurate.)*
+
+**H18 — A.** Native tool use provides structural guarantees (block typing, `stop_reason` signaling, correlation IDs) that free-text JSON embedded in prose and manually parsed forfeits entirely, even if it superficially works sometimes. *(B: ignores everything native tool use provides beyond the raw JSON payload. C: fabricates cost as "the only" difference, ignoring the much larger reliability gap. D: inverts a reliability failure — "more flexibility to deviate from schema" — into a stated benefit.)*
+
+**H19 — A.** Two genuinely independent, comparable explorations from a shared starting point is the canonical case fork is built for — contrast with the wrongly-claimed onboarding-assistant use of fork (H3) and with Q13's correct use of compaction for a single linear thread. *(B: compaction is right for sequential, unrelated-task contamination (Q13), but wrong here — compacting away Approach 1 before comparison destroys the ability to actually weigh both options. C: the same "trust the model to keep things separate" anti-pattern, worse given the scenario names the exact risk. D: overcorrects by discarding the legitimately useful shared starting context.)*
+
+**H20 — A.** Closes the cross-domain-trap set (alongside Q22 and Q30): the team's calibration/monitoring hypothesis is plausible on its face but explicitly ruled out by their own investigation (threshold and sampling both unchanged). The actual mechanism is the same context-degradation pattern as Q22 — an ever-growing, uncompacted session crowding out attention to rarely-invoked instructions. *(B: ignores the investigation's own stated findings. C and D: fabricate unrelated causes with no connection to the described mechanism.)*
