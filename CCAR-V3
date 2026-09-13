@@ -1,0 +1,2307 @@
+# CCAR-F Gap Question Bank
+
+144 questions total
+
+---
+
+## Part A — Questions on Identified Gaps
+
+### A1. Coordinator re-delegation / iterative refinement loop (Domain 1)
+
+**A1-Q1.** A coordinator's synthesis pass on "causes of the 2008 financial crisis" comes
+       back covering only subprime mortgages, omitting credit default swaps and
+       ratings-agency failures entirely.
+A) Instruct the synthesis agent to "consider more root causes" and re-run synthesis on
+   the same findings.
+B) Have the coordinator detect the gap against the original scope, then re-delegate
+   targeted queries ("credit default swap role," "ratings agency failures") to
+   search/analysis before re-running synthesis.
+C) Increase the web-search subagent's result count from 10 to 30 sources per query.
+D) Add a hook requiring synthesis output to exceed a minimum number of named causes
+   before it can return.
+
+**A1-Q2.** A coordinator does re-delegate on detected gaps, but after three rounds of
+       re-delegation the report still shows the same one-line gap note every time,
+       never actually improving.
+A) The re-delegation queries themselves aren't changing round to round — the coordinator
+   needs to track what's already been asked and generate genuinely new, narrower
+   follow-ups each round.
+B) Compaction is destroying the synthesis output between rounds — disable it.
+C) The synthesis agent's temperature should be lowered to reduce variance across rounds.
+D) Add a fourth mandatory re-delegation round regardless of content, since more
+   iterations always converge eventually.
+
+**A1-Q3.** A coordinator notices synthesis is missing coverage of "residential spillover
+       effects" and responds by re-invoking the *synthesis* agent again with the
+       same source material and the added instruction "please also address
+       residential spillover."
+A) Correct — re-instructing synthesis with an additional angle is the standard fix for a
+   coverage gap.
+B) Incorrect — the gap is that the underlying search/analysis never gathered information
+   on residential spillover in the first place; re-running synthesis on the same
+   incomplete source material can't manufacture facts it was never given.
+C) Incorrect — the fix is to lower synthesis's temperature so it extracts more from the
+   same sources.
+D) Correct, but only if paired with a stricter output length requirement.
+
+**A1-Q4.** A coordinator correctly identifies a coverage gap and re-delegates, but the
+       follow-up instruction to the search subagent is identical in wording to the
+       original broad research prompt.
+A) This is fine — subagents should always receive the same framing to stay consistent
+   with the original scope.
+B) The re-delegation isn't actually targeted — it should specify the narrow gap itself
+   (e.g., "search specifically for residential real estate spillover data") rather than
+   repeating the original broad ask, or the search agent will likely surface the same
+   results again.
+C) The fix is to switch this subagent to a different model tier for the retry.
+D) The fix is to have the coordinator itself perform the search directly instead of
+   delegating.
+
+### A2. Content vs. metadata separation in subagent handoffs (Domain 1)
+
+**A2-Q1.** A document-analysis subagent hands synthesis a single narrative paragraph
+       blending three claims from two different papers, with source names mentioned
+       only in passing mid-sentence. The final report cannot reliably attribute
+       which claim came from which paper.
+A) Have the subagent return each claim as a structured item with its own explicit source
+   field, separate from the claim text itself.
+B) Ask the subagent to write more clearly so the sources are easier to spot in the
+   prose.
+C) Have the coordinator manually re-read the original papers to reconstruct attribution.
+D) Merge the two papers' findings into one unattributed summary, since fine-grained
+   attribution isn't necessary for a synthesis-level report.
+
+**A2-Q2.** Two different source documents are both referred to as "the 2023 report"
+       inside a subagent's returned findings, and synthesis conflates them into one
+       source in the final citations.
+A) Require each finding to carry an explicit, unambiguous document identifier (filename,
+   URL, or ID) as its own metadata field, not just a description embedded in prose.
+B) Instruct the synthesis agent to try harder to distinguish similarly-named reports.
+C) Reduce the number of source documents allowed per subagent to avoid naming
+   collisions.
+D) Rename all future documents to avoid the word "report" in their titles.
+
+**A2-Q3.** A team's fix for lost citation attribution is to have subagents write
+       noticeably longer, more descriptive prose paragraphs around each claim,
+       hoping added narrative detail preserves sourcing.
+A) Correct — more descriptive prose reliably preserves attribution through downstream
+   summarization.
+B) Incorrect — attribution loss is a structural problem (content and metadata aren't
+   separated into distinct fields); more prose just gives a generic summarizer more
+   material to compress and still risks dropping the same inline-mentioned source.
+C) Correct, but only for findings under 200 words.
+D) Incorrect — the real fix is switching all output to bullet points regardless of
+   metadata structure.
+
+**A2-Q4.** A subagent returns page numbers as part of a sentence ("as discussed on page
+       12 of the report, revenue grew...") rather than as a separate field, and a
+       later compaction pass drops the page reference while keeping the claim.
+A) This is acceptable — page numbers are a minor detail not worth structuring
+   separately.
+B) Give the finding a distinct `page_number` (or general location) metadata field
+   alongside the claim text, so it survives independent of whatever happens to the
+   surrounding prose during compaction.
+C) Avoid ever compacting sessions that reference page numbers.
+D) Ask the model to repeat the page number at both the start and end of the sentence for
+   redundancy.
+
+### A3. Structured handoff protocols for escalation (Domain 1)
+
+**A3-Q1.** An agent escalates a billing dispute to a human with just the message:
+       "Customer needs help, please assist." The human has no transcript access and
+       must start the investigation from scratch.
+A) This is fine, since humans are trained to investigate cases without prior context.
+B) The handoff should include a structured summary: customer/case ID, root cause as
+   understood so far, amounts involved, and a recommended next action — so the human can
+   act without re-deriving context.
+C) The fix is to give the human agent access to the raw conversation transcript instead
+   of any summary.
+D) The fix is to have the agent resolve the case rather than escalate it, avoiding the
+   handoff problem entirely.
+
+**A3-Q2.** A team's escalation handoffs include a full case-facts block copy-pasted from
+       the agent's internal working memory, including irrelevant intermediate
+       reasoning steps and abandoned lines of investigation.
+A) Correct as-is — more context is always better for a human picking up a case.
+B) Trim the handoff to the load-bearing structured fields relevant to the case (ID, root
+   cause, amount, recommended action) rather than exporting the full internal reasoning
+   trace, which buries the actionable summary in noise.
+C) Escalation handoffs shouldn't include any case facts at all, to keep them short.
+D) Replace the case-facts block with a single-sentence summary and nothing else.
+
+**A3-Q3.** An agent escalates a case but omits a recommended action, reasoning that "the
+       human should decide independently, without my bias."
+A) Correct — omitting a recommendation avoids improperly influencing the human's
+   judgment.
+B) Structured handoffs are more effective when they include a recommended action
+   alongside the facts — it gives the human a starting point to accept, adjust, or
+   reject, without forcing them to reconstruct one from scratch; this doesn't remove
+   their judgment, it informs it.
+C) The recommendation should only be included if the case involves a refund over $500.
+D) The recommendation should replace the root-cause explanation, not accompany it.
+
+**A3-Q4.** A team standardizes escalation handoffs into a fixed structured template
+       (case ID, root cause, amount, recommended action) applied to every
+       escalation, including ones triggered purely by an explicit customer request
+       with no underlying issue investigation done yet.
+A) The template should always be fully populated before any escalation is sent, even if
+   some fields are empty because no investigation occurred.
+B) The template's *purpose* — giving the human enough to act without re-deriving context
+   — still applies; fields that reflect work not yet done (e.g., root cause) can
+   honestly indicate that, rather than being fabricated to fit the template.
+C) Explicit-request escalations shouldn't use structured handoffs at all, since no
+   investigation has occurred.
+D) The agent should refuse to escalate until it has independently completed a root-cause
+   investigation.
+
+### A4. Hooks for data normalization (Domain 1)
+
+**A4-Q1.** A shipping-tracking tool returns delivery timestamps as Unix epoch integers,
+       while an inventory tool returns them as ISO 8601 strings. The agent has
+       started comparing the raw values directly and drawing wrong conclusions about
+       delivery order.
+A) Add a system-prompt instruction telling the model to "convert timestamps mentally
+   before comparing."
+B) Add a `PostToolUse` hook that normalizes both tools' timestamp outputs into one
+   consistent format before the model ever reasons over them.
+C) Ask both third-party tool vendors to standardize their APIs, and wait for that
+   change.
+D) Instruct the model to always call a separate "what time is it" tool before comparing
+   timestamps.
+
+**A4-Q2.** A team uses a `PostToolUse` normalization hook to reconcile two tools'
+       differing status-code conventions (one returns `1`/`0`, the other returns
+       `"success"`/`"failure"`), converting both into one consistent boolean before
+       the model sees either.
+A) This is the wrong use of a hook — normalization should only happen via prompt
+   instructions.
+B) This is a correct, well-scoped use of a `PostToolUse` hook — reconciling
+   heterogeneous but semantically equivalent formats before the model reasons over them,
+   distinct from using a hook to *block* an action.
+C) This is unnecessary — models can already reason correctly across differing
+   status-code conventions without help.
+D) This should be an MCP resource instead of a hook.
+
+**A4-Q3.** A tool intermittently returns a business-logic error (e.g., "refund exceeds
+       policy limit") formatted as a plain string inside an otherwise
+       successful-looking response. The team's fix is a `PostToolUse` hook that
+       "normalizes" this by rewriting the string into a friendlier phrase before the
+       model sees it.
+A) Correct — normalization hooks are the right way to handle any inconsistency in tool
+   output, including this one.
+B) This misapplies a normalization hook to what's actually a structured-error-metadata
+   problem (Domain 2) — the real fix is setting `is_error`/an error category on the
+   response, not rewording a business failure to look nicer while still burying it in a
+   same-shaped success payload.
+C) Correct, but only if the rewritten string is under 15 words.
+D) Incorrect — the fix is to remove the hook entirely and have the model parse the raw
+   string itself.
+
+**A4-Q4.** A vendor's weather API sometimes returns temperature in Celsius and sometimes
+       in Fahrenheit depending on which of its two regional endpoints responds, with
+       no indicator in the payload of which unit was used.
+A) A `PostToolUse` hook can't help here, since there's no reliable signal in the payload
+   to determine which unit to normalize from.
+B) A `PostToolUse` hook should default all values to Celsius regardless of source, since
+   defaulting is always safer than guessing.
+C) The fix is upstream of normalization: this needs a schema/contract fix with the
+   vendor (or querying a per-endpoint metadata field, if one exists) — a hook can only
+   normalize between formats it can actually distinguish, and this specific failure
+   lacks a reliable determinant to normalize *from*.
+D) The fix is to have the model always assume Fahrenheit, since that's the more common
+   convention for US customers.
+
+### A5. MCP server scoping and configuration (Domain 2)
+
+**A5-Q1.** A developer is experimenting with a new, unreleased internal MCP server that
+       only they should use while testing. They configure it in the project's
+       `.mcp.json`.
+A) This is correct — all MCP servers should be configured at the project level for
+   consistency.
+B) This should instead be configured in their personal `~/.claude.json`, since it's an
+   experimental/personal server not meant to be shared with the rest of the team via
+   version control.
+C) This should be configured as an environment variable directly, bypassing both config
+   files.
+D) This should be split across both `.mcp.json` and `~/.claude.json` simultaneously for
+   redundancy.
+
+**A5-Q2.** A team's shared Jira MCP server requires an API token. The team wants every
+       developer to be able to authenticate with their own individual token without
+       anyone's token being committed to version control.
+A) Hardcode a single shared token directly in `.mcp.json` and commit it, rotating it
+   periodically.
+B) Configure `.mcp.json` with `${JIRA_TOKEN}` environment variable expansion, so each
+   developer supplies their own token locally while the server config itself stays
+   shared and committed.
+C) Store each developer's token in their own separate `.mcp.json` file, one per person,
+   none of them committed.
+D) Avoid using an MCP server for Jira integration entirely, and have developers interact
+   with Jira manually.
+
+**A5-Q3.** A project has both a project-scoped `.mcp.json` (with a shared GitHub server)
+       and a developer's personal `~/.claude.json` (with an experimental local
+       database server) configured at the same time.
+A) Only one of the two scopes can be active per session — the developer must choose.
+B) Both are discovered and available simultaneously; project and user scope aren't
+   mutually exclusive, they're additive.
+C) The personal server silently overrides the project server if both define a tool with
+   the same name, with no way to detect this.
+D) User-scoped servers are automatically disabled whenever a project-scoped `.mcp.json`
+   is present.
+
+**A5-Q4.** A new team member joins and complains that a documented internal MCP tool
+       isn't available in their session, even though the project's `.mcp.json`
+       clearly lists the server.
+A) The most likely explanation, given correct project config, is an environment variable
+   used in the server's config (e.g., a credential) isn't set in their local
+   environment, so the server fails to start for them specifically.
+B) `.mcp.json` only applies to the person who created the file, not to teammates who
+   clone the repo later.
+C) MCP servers require re-registration by every new developer through a separate manual
+   process regardless of config files.
+D) The tool must have been accidentally scoped to `~/.claude.json` instead, even though
+   the file in question is `.mcp.json`.
+
+### A6. MCP resources as content catalogs (Domain 2)
+
+**A6-Q1.** An agent working with a large document-management system currently has to
+       call a search tool repeatedly just to figure out what document categories and
+       folders even exist before it can decide what to actually look for.
+A) Add more search tools with narrower scopes.
+B) Expose the folder/category hierarchy as an MCP resource the agent can read directly,
+   eliminating the exploratory search calls needed just to discover what's available.
+C) Instruct the agent via system prompt to "remember the folder structure between
+   sessions."
+D) Increase the search tool's result limit so each exploratory call returns more at
+   once.
+
+**A6-Q2.** A database-querying agent wastes several tool calls each session just probing
+       table names and column structures via trial-and-error `SELECT` queries before
+       it can write a real query.
+A) Expose the database schema as an MCP resource, giving the agent direct visibility
+   into table/column structure without needing exploratory probe queries.
+B) Add a hook that blocks any `SELECT` query issued before a specific "discovery" query
+   has run first.
+C) Have the agent guess table names based on common naming conventions instead of
+   probing.
+D) Convert the schema into a required parameter that the human must supply manually
+   before every query.
+
+**A6-Q3.** A team exposes their document-category catalog as an MCP *tool* called
+       `list_categories()` rather than a resource, reasoning "tools and resources
+       both return data to the model, so it doesn't matter which one this is."
+A) Correct — the choice between tool and resource is purely stylistic for read-only
+   catalog data.
+B) It works either way, but modeling it as a resource is more appropriate here: this is
+   static, non-parameterized, discoverable reference content, exactly what the resource
+   abstraction communicates to the model.
+C) It should be a hook instead of either a tool or a resource.
+D) It should require a `mode` parameter to switch between summary and detailed views,
+   which is only possible as a tool.
+
+**A6-Q4.** A team exposes a "generate compliance report" capability as an MCP resource,
+       reasoning "it returns data to the model, so resources are the more efficient
+       choice here."
+A) Correct — any read-facing capability should default to a resource for efficiency.
+B) Incorrect — this capability computes a derived result from varying inputs each time
+   it runs, which is an action, not static discoverable content; it belongs as a tool
+   regardless of the fact that it "returns data."
+C) Correct, but only if the report is cached between calls.
+D) Incorrect — it should be a hook, since compliance is a policy-enforcement concern.
+
+### A7. Built-in tool selection (Domain 2)
+
+**A7-Q1.** An agent needs to find every file in a large repo whose *filename* ends in
+       `.migration.ts`, regardless of what's inside those files.
+A) `Grep` for the string ".migration.ts" across all file contents.
+B) `Glob` with a pattern like `**/*.migration.ts`, since this is a filename/path pattern
+   match, not a content search.
+C) `Read` every file in the repo and check its name programmatically.
+D) `Bash` with a recursive `cat` across the whole repo, filtering output afterward.
+
+**A7-Q2.** An agent needs to find every place in a codebase that calls a specific
+       function, `computeDiscount()`, regardless of which files those calls live in.
+A) `Glob` for files matching `**/*discount*`, since the function name suggests likely
+   filenames.
+B) `Grep` for the string `computeDiscount(` across file contents, since this is a
+   content search for a pattern, not a filename search.
+C) `Read` the file where `computeDiscount` is defined, and stop there.
+D) `Bash` with `find` searching for files modified in the last 30 days.
+
+**A7-Q3.** An agent attempts an `Edit` call to change one specific line in a config
+       file, but the target text appears four times identically in the file, and
+       `Edit` rejects the call for lack of a unique anchor. The agent's next move is
+       to retry the identical `Edit` call two more times, hoping it succeeds
+       differently.
+A) Correct — retrying is the appropriate response to a non-unique match error.
+B) Incorrect — retrying with identical input will fail identically every time; the agent
+   should either expand `old_str` to include unique surrounding context, or fall back to
+   `Read` the full file and `Write` back the complete corrected content.
+C) Correct, but only after first lowering the model's temperature.
+D) Incorrect — the fix is to use `Grep` to delete the ambiguous lines instead of editing
+   them.
+
+**A7-Q4.** An agent exploring an unfamiliar codebase is asked to "trace how the
+       `sendInvoice` function is used throughout the app." It starts by calling
+       `Read` on every single file in the repository, one at a time, before deciding
+       what's relevant.
+A) This is the correct, thorough approach for unfamiliar codebases.
+B) A more effective pattern is `Grep` for `sendInvoice` first to locate entry points and
+   callers, then `Read` only the specific files that reference it, tracing imports/flow
+   from there — rather than reading the entire repo upfront.
+C) The agent should use `Glob` for `**/*.ts` first, since that narrows the search to
+   TypeScript files.
+D) The agent should use `Bash` to count total lines of code in the repo before
+   proceeding.
+
+### A8. @import syntax and /memory command (Domain 3)
+
+**A8-Q1.** A large `CLAUDE.md` has grown to include full sections on API conventions,
+       testing standards, and deployment procedures, all maintained by different
+       team leads who keep conflicting with each other's edits in the same file.
+A) `@import` each lead's section from its own separate standards file into the root
+   `CLAUDE.md`, keeping the file modular while letting each owner maintain their own
+   file independently.
+B) Have every lead edit the same file but require a Slack message before making any
+   change.
+C) Convert each section into a `.claude/commands/` custom command instead.
+D) Delete the sections no one has edited recently to shrink the file.
+
+**A8-Q2.** A new team member reports that Claude Code isn't following the team's
+       documented testing conventions, even though the conventions are clearly
+       written in a `CLAUDE.md` file somewhere in the team's shared setup.
+A) Increase the model's context window so it can hold more of `CLAUDE.md` in effective
+   attention.
+B) Use `/memory` to check which memory files are actually being loaded in their session
+   — this directly diagnoses whether the conventions file is in a scope (e.g., a
+   teammate's personal `~/.claude/CLAUDE.md`) that never reaches this new member at all.
+C) Ask the new team member to manually copy-paste `CLAUDE.md` into every session's first
+   message.
+D) Rewrite the conventions using more emphatic wording so they're harder to miss.
+
+**A8-Q3.** A root `CLAUDE.md` uses `@import` to pull in
+       `./standards/api-conventions.md`, but a developer editing that imported file
+       doesn't see their edits reflected in the agent's next session.
+A) `@import` only refreshes once per calendar day, so the developer needs to wait.
+B) This is likely a path or file-existence issue with the `@import` reference itself, or
+   the session needs to reload memory files — `/memory` can be used to verify what
+   actually loaded and confirm whether the imported file's content is present.
+C) `@import` doesn't support subdirectories, so the file needs to be moved to the root.
+D) `@import` is a project-scope-only feature and won't work if the developer is using a
+   personal session.
+
+**A8-Q4.** A team wants each package in a monorepo to include only the standards files
+       relevant to that package's maintainer's domain (e.g., the backend package
+       only pulls in API and database conventions, not frontend styling rules),
+       without duplicating shared content across packages.
+A) Give every package's `CLAUDE.md` the full set of standards regardless of relevance,
+   since more context is always safer.
+B) Use `@import` in each package's `CLAUDE.md` to selectively pull in only the standards
+   files relevant to that package, keeping shared source files single-sourced while each
+   package's effective config stays scoped to what its maintainers actually need.
+C) Maintain one single repo-wide `CLAUDE.md` with no `@import` at all, since imports add
+   unnecessary indirection.
+D) Convert all standards files into skills that must be manually invoked by each
+   package's maintainer.
+
+### A9. Path-scoped `.claude/rules/` vs. directory `CLAUDE.md` (Domain 3)
+
+**A9-Q1.** A codebase has GraphQL resolver files scattered across a dozen different
+       feature directories (not centralized in one `graphql/` folder), and the team
+       wants consistent resolver conventions applied to all of them regardless of
+       location.
+A) Add the conventions to the root `CLAUDE.md` under a "GraphQL Resolvers" heading and
+   trust the agent to recognize when it applies.
+B) Create a `.claude/rules/` file with a glob like `paths: ["**/*.resolver.ts"]`, so the
+   conventions load automatically whenever a matching file is touched, regardless of
+   which of the dozen directories it's in.
+C) Create a directory-level `CLAUDE.md` in each of the dozen feature directories,
+   duplicating the same conventions in each.
+D) Convert the conventions into a skill that must be manually invoked before editing any
+   resolver file.
+
+**A9-Q2.** A team has both a directory-level `CLAUDE.md` in `services/payments/`
+       (covering that service's specific business rules) and a `.claude/rules/` file
+       scoped to `paths: ["**/*.test.*"]` (covering test-file conventions
+       repo-wide). A payments test file is being edited.
+A) Only one of the two configs can apply at a time — the more specific one wins and the
+   other is ignored.
+B) Both apply simultaneously and additively: the directory-level
+   `services/payments/CLAUDE.md` loads because of location, and the path-scoped
+   test-file rule loads because of file-type match — they aren't mutually exclusive
+   mechanisms.
+C) The path-scoped rule overrides and disables the directory `CLAUDE.md` whenever both
+   would apply.
+D) Neither applies, since combining directory-scoping and path-scoping on the same file
+   isn't supported.
+
+**A9-Q3.** A team wants Terraform infrastructure conventions applied only to `.tf`
+       files, which live in one dedicated `infra/` directory with no other file
+       types mixed in.
+A) A `.claude/rules/` file with `paths: ["**/*.tf"]` is necessary here, since only
+   glob-pattern rules can scope by file type.
+B) Since `.tf` files here happen to be confined to one single directory with no other
+   file types present, a directory-level `CLAUDE.md` in `infra/` would work just as well
+   — path-scoped rules earn their advantage specifically when a file type is *scattered*
+   across many directories, not when it's already isolated in one.
+C) Terraform files require a custom MCP server for convention enforcement; neither
+   `CLAUDE.md` mechanism applies.
+D) This must use `@import`, since Terraform is an infrastructure concern rather than a
+   coding convention.
+
+**A9-Q4.** A `.claude/rules/` file is created with frontmatter `paths:
+       ["src/legacy/**"]`, and the team describes this as "using glob-pattern rules
+       to keep conventions scoped by file type across scattered directories."
+A) This description is accurate for this specific rule.
+B) This description is inaccurate for this specific rule: a path like `src/legacy/**`
+   scopes by *directory location*, not file type — functionally similar to what a
+   directory-level `CLAUDE.md` in `src/legacy/` would achieve, even though it's
+   implemented as a `.claude/rules/` file. The glob-pattern advantage over directory
+   `CLAUDE.md` specifically shows up for patterns like `**/*.test.ts` that cross many
+   directories.
+C) This description is accurate, since `.claude/rules/` files are never directory-scoped
+   by design.
+D) This description is only accurate if the rule also has an `argument-hint`.
+
+### A10. Iterative refinement techniques (Domain 3)
+
+**A10-Q1.** A team asks Claude Code to "reformat all date strings to a standard format"
+        across a codebase, but the model produces inconsistent results — some dates
+        end up as `MM/DD/YYYY`, others as ISO 8601 — because the prose instruction
+        doesn't pin down which standard is meant.
+A) Provide 2–3 concrete input/output examples showing exactly which raw formats should
+   map to exactly which target format, since concrete examples resolve ambiguity that
+   prose alone leaves open to interpretation.
+B) Repeat the instruction three times in the prompt for emphasis.
+C) Lower the temperature to 0, since the ambiguity is caused by sampling randomness.
+D) Split the task across two separate sessions, one for each date format convention.
+
+**A10-Q2.** A developer wants Claude Code to build a caching layer for an unfamiliar
+        subsystem, but hasn't yet decided on an invalidation strategy, TTL values,
+        or failure-mode behavior, and worries the first implementation attempt will
+        bake in unstated wrong assumptions.
+A) Have Claude implement its best guess first, then review and correct it afterward.
+B) Use the interview pattern: have Claude ask clarifying questions about invalidation
+   strategy, TTL, and failure handling *before* implementing, surfacing considerations
+   the developer hadn't yet specified.
+C) Write the most detailed prose specification possible upfront, covering every edge
+   case in exhaustive written detail before any interview questions are asked.
+D) Skip planning entirely and rely on Claude Code's default caching conventions.
+
+**A10-Q3.** A team wants a data-migration script to handle null values correctly, but
+        plain-language descriptions of "handle nulls gracefully" keep producing
+        inconsistent behavior across different tables.
+A) Write a test suite with specific test cases showing example input (including null
+   values) and expected output, then iterate by sharing test failures to guide
+   correction — more effective here than further prose refinement.
+B) Add the word "gracefully" in bold in the instruction to increase its weight.
+C) Ask the model to handle nulls "the way most migration scripts typically do," relying
+   on general convention.
+D) Avoid nulls in the source data entirely by preprocessing them out before the
+   migration script runs.
+
+**A10-Q4.** A pull request has three separate review comments: a security issue in the
+        auth module, a performance issue in an unrelated caching module, and a
+        naming-convention nitpick in a third, unrelated file. The developer asks
+        Claude Code to address all three.
+A) Since these three issues are independent of each other (different modules, no
+   interaction), addressing them sequentially, one at a time with separate focused
+   messages, is more effective than bundling them into a single dense one; bundling
+   multiple issues into one message is better reserved for problems that genuinely
+   interact.
+B) All three should always be given to Claude in a single combined message regardless of
+   whether they interact, since batching is always more token-efficient.
+C) Independent issues should be assigned to three different subagents via `Task`, since
+   parallel subagent delegation is the correct pattern for any set of more-than-one
+   issue.
+D) The security issue should be silently deprioritized since it's not related to the
+   other two.
+
+### A11. CI/CD integration (Domain 3)
+
+**A11-Q1.** A pipeline script runs `claude "Analyze this diff for security issues"` as
+        part of an automated PR check, and the job hangs indefinitely waiting for
+        input that will never come.
+A) Add `-p` (or `--print`) to run Claude Code in non-interactive mode, which processes
+   the prompt and exits without waiting on stdin.
+B) Set a generic `CI=true` environment variable, since most CLI tools respect that
+   convention automatically.
+C) Pipe an empty string into the command via `echo "" | claude ...`, satisfying whatever
+   input it's waiting for.
+D) Run the command inside a `screen` session so it can be manually attached to and
+   dismissed if it hangs.
+
+**A11-Q2.** A CI pipeline needs Claude Code's PR-review findings posted as individual
+        inline comments by a separate script, which requires parsing the findings
+        into a predictable, machine-readable shape rather than free-form prose.
+A) Ask Claude in the prompt to "format the output as JSON" and parse whatever text comes
+   back with a regex.
+B) Use `--output-format json` together with `--json-schema` to enforce a specific
+   structured shape for the output, giving the downstream script a reliable
+   machine-parseable result rather than relying on prompt-level formatting requests.
+C) Post the entire raw text response as one single PR comment and let developers read
+   through it themselves.
+D) Run the review twice and diff the two outputs to catch formatting inconsistencies.
+
+**A11-Q3.** A team re-runs an automated code review on a PR after new commits are
+        pushed, and the same three issues from the first review pass get posted
+        again as duplicate comments on the second pass, annoying the developer.
+A) Include the prior review's findings in context on the re-run, and instruct Claude to
+   report only new or still-unaddressed issues rather than the full set again.
+B) Disable automated re-reviews after the first pass on any PR, checking manually from
+   then on.
+C) Delete all previous PR comments automatically before every re-run, regardless of
+   whether the underlying issues were actually fixed.
+D) Lower the review's temperature on re-runs so it becomes more consistent with the
+   first pass, including repeating the same findings verbatim.
+
+**A11-Q4.** The same Claude Code session that just wrote a bug fix is then asked, within
+        that same session, to review its own diff for regressions before the PR is
+        opened.
+A) This is the most reliable review setup, since the session already has full context on
+   why each change was made.
+B) A session reviewing its own just-generated changes retains the reasoning that
+   produced them and is less likely to question its own decisions; an independent review
+   instance, without that prior reasoning context, is more effective at catching subtle
+   issues.
+C) This is reliable as long as the session is instructed to "review critically and
+   skeptically" before responding.
+D) This is reliable as long as extended thinking is enabled for the review step
+   specifically.
+
+### A12. Retry-with-error-feedback (Domain 4)
+
+**A12-Q1.** An extraction tool call fails Pydantic validation because a `total_price`
+        field came back as the string `"$42.00"` instead of a float. The retry logic
+        re-sends the same document with the generic message "please try again."
+A) This is sufficient — the model will likely self-correct on a second attempt
+   regardless of message content.
+B) The retry should include the specific validation error (e.g., "`total_price` must be
+   a float; got `'$42.00'` — remove currency symbol") so the model has concrete
+   information to correct, rather than guessing what was wrong from a generic prompt.
+C) The fix is to lower the extraction tool's temperature to 0 for all retries.
+D) The fix is to remove the `total_price` field from the schema entirely, since currency
+   formatting is inherently unreliable.
+
+**A12-Q2.** A retry-with-error-feedback loop is set up correctly (specific validation
+        errors are fed back on each attempt), but one particular document keeps
+        failing after 3 retries because the source document itself never states the
+        required field at all — it's genuinely absent, not malformed.
+A) Increase the retry cap to 10 for this document, since eventually the model should
+   locate the value.
+B) Recognize this as a case retry can't fix — the information is absent from the source,
+   not incorrectly formatted — and route it to human review or represent the field as
+   null, rather than continuing to retry.
+C) Rewrite the validation error message to be more detailed, since a clearer error
+   message will help the model "find" a value that doesn't exist.
+D) Switch to a higher-tier model for this document only, since only a more capable model
+   can infer a value that was never stated.
+
+**A12-Q3.** A team implements retry-with-error-feedback, but their retry message
+        includes the *previous* failed extraction's incorrect field value without
+        stating *why* it was rejected — just "this was wrong, try again."
+A) This is sufficient, since restating the failed value alone is enough signal for
+   correction.
+B) The specific validation error (what rule was violated and why) needs to be included,
+   not just a flag that the prior attempt was wrong — without the "why," the model has
+   no more information than a blind retry would.
+C) The fix is to omit the previous failed value entirely from the retry, showing only
+   the original document.
+D) The fix is to have a human manually correct the field after the very first failure,
+   skipping retries altogether.
+
+**A12-Q4.** A batch of contracts is processed with a retry-with-error-feedback loop. One
+        contract fails because its `termination_clause` field is syntactically
+        well-typed but semantically nonsensical (an obviously fabricated boilerplate
+        string). Validation passes because the schema only checks types, so no retry
+        is ever triggered — the bad value ships downstream.
+A) This is fine, since schema-level (syntactic) validation and retry logic together are
+   sufficient for any extraction pipeline.
+B) This is a gap: retry-with-error-feedback only fires on validation *failures*, and
+   syntactic validation doesn't catch semantic implausibility — a separate
+   semantic/business-rule validation layer is needed to even detect this case before any
+   retry logic can act on it.
+C) The fix is to increase the retry cap so validation runs more times regardless of
+   whether it initially passes.
+D) The fix is to remove the `termination_clause` field from the schema, since it's
+   clearly unreliable.
+
+### A13. Multi-instance / multi-pass review (Domain 4)
+
+**A13-Q1.** A code-generation session is immediately asked, within the same session, to
+        critically review the code it just wrote for edge-case bugs.
+A) This is the most efficient setup — the session already understands the code's intent
+   and design tradeoffs.
+B) The session retains the reasoning that led to its own implementation choices, making
+   it less likely to challenge those choices; an independent instance without that
+   reasoning context is more likely to catch issues the original session is anchored
+   against.
+C) This is reliable as long as the review instruction explicitly says "assume this code
+   has bugs."
+D) This is reliable as long as the review is run a second time within the same session
+   for confirmation.
+
+**A13-Q2.** A single review pass across a 22-file refactor produces inconsistent depth
+        (some files get thorough analysis, others superficial) and contradicts
+        itself — flagging a pattern as risky in one file while approving the
+        identical pattern elsewhere in the same PR.
+A) Switch to a larger-context-window model so all 22 files get equal attention in one
+   pass.
+B) Split the review into focused per-file passes for local issues, plus a separate
+   cross-file integration pass specifically to catch consistency issues across files —
+   addressing both attention dilution and the self-contradiction problem directly.
+C) Require the developer to split the PR into smaller PRs before any review runs.
+D) Run the single-pass review three times and average the findings.
+
+**A13-Q3.** A team runs a second, independent review instance on generated code
+        (correctly avoiding self-review), but that second instance is given the
+        exact same system prompt, same file order, and no additional context beyond
+        what the first instance had.
+A) This still meaningfully addresses the self-review problem — the key variable is the
+   absence of the *first instance's own reasoning trace*, not necessarily variation in
+   every other input; a fresh instance without that reasoning context is still
+   positioned to catch what the generator was anchored against.
+B) This provides no benefit at all, since identical prompts and file order guarantee
+   identical results regardless of prior reasoning context.
+C) This is invalid unless the second instance uses a different model tier than the
+   first.
+D) This is invalid unless extended thinking is enabled specifically for the second pass.
+
+**A13-Q4.** A team wants to review a monolithic 40-file migration PR for both per-file
+        correctness and cross-file consistency, but budget constraints mean only one
+        review pass is affordable.
+A) A single pass covering all 40 files at once is the correct tradeoff, since splitting
+   into multiple passes always costs more regardless of PR size.
+B) If only one pass is affordable, the team should recognize the coverage tradeoff being
+   made — a single pass risks both the attention-dilution and cross-file-inconsistency
+   failure modes that the two-pass split (per-file + integration) exists specifically to
+   avoid; this is a real constraint, not a case where a single pass is architecturally
+   equivalent to two.
+C) The fix is to skip file-level review entirely and only run the integration pass.
+D) The fix is to have the developer manually review half the files and Claude review the
+   other half.
+
+### A14. Escalation triggers (Domain 5)
+
+**A14-Q1.** A customer explicitly writes, "Please connect me to a human representative,"
+        in a case that the agent could likely resolve autonomously in one tool call.
+A) The agent should attempt autonomous resolution first, since it's within its
+   demonstrated capability, and only escalate if the customer explicitly reiterates the
+   request afterward.
+B) The explicit request for a human is itself a valid, standalone escalation trigger,
+   independent of the agent's own assessment of case complexity — it should be honored
+   without first attempting to talk the customer out of it via an unrequested resolution
+   offer.
+C) The agent should ask the customer to first confirm they've tried self-service
+   resources before escalating.
+D) The agent should escalate only if the case would take more than two tool calls to
+   resolve.
+
+**A14-Q2.** An agent encounters a request for a price match against a competitor, and
+        company policy explicitly addresses price matching only for the company's
+        own past sales, saying nothing about competitor pricing.
+A) The agent should apply the closest analogous policy (its own-sale price matching
+   rule) directly to the competitor case, since some policy exists on the general topic.
+B) This is a policy gap, not a policy violation — the case should be escalated, since
+   the agent has no actual authoritative guidance covering this specific scenario,
+   rather than extrapolating a rule that was never written to cover it.
+C) The agent should decline the request outright, since no explicit policy authorizes
+   it.
+D) The agent should resolve it based on general reasonableness, since escalation should
+   be reserved only for angry customers.
+
+**A14-Q3.** An agent uses a self-reported confidence score (e.g., "I am 90% confident
+        this is correct") as its sole criterion for whether to escalate a case.
+A) This is a reliable escalation mechanism, since the model has direct introspective
+   access to its own uncertainty.
+B) Self-reported confidence is a weak proxy for actual case complexity — a model can be
+   confidently wrong on genuinely hard cases — so this shouldn't be the sole escalation
+   criterion; explicit criteria and few-shot examples of when to escalate are more
+   reliable.
+C) This is reliable only when combined with a sentiment-analysis score on the customer's
+   message.
+D) This is reliable as long as the confidence threshold is set above 95%.
+
+**A14-Q4.** A customer's message shows clear frustration ("this is the third time I've
+        had to explain this!") but never explicitly asks for a human, and the
+        underlying issue is one the agent can resolve immediately.
+A) Escalate immediately without attempting resolution, since expressed frustration alone
+   should always trigger escalation regardless of the agent's capability.
+B) Acknowledge the frustration and offer resolution given the issue is within the
+   agent's demonstrated capability, escalating only if the customer subsequently
+   reiterates a preference for a human — distinct from the explicit-request case
+   (A14-Q1), where the request itself is the trigger.
+C) Ignore the expressed frustration entirely and proceed straight to resolution without
+   acknowledgment.
+D) Use a sentiment score threshold to decide whether frustration is "high enough" to
+   warrant escalation.
+
+### A15. Crash recovery via structured state manifests (Domain 5)
+
+**A15-Q1.** A multi-agent pipeline processing a large research task crashes mid-run
+        after several subagents have already completed and returned findings. The
+        team wants to resume without re-running the already-completed subagents.
+A) Restart the entire pipeline from scratch, since partial state can't reliably be
+   trusted after a crash.
+B) Have each agent export its state (completed status, findings) to a known location as
+   it finishes, and have the coordinator load a manifest of that state on resume,
+   re-injecting completed findings into its context rather than re-running finished
+   work.
+C) Rely on the conversation history alone to reconstruct what had completed, without any
+   separate exported state.
+D) Increase the context window so the entire session, including the crash point, fits in
+   a single request on resume.
+
+**A15-Q2.** A coordinator resumes after a crash and reloads a manifest showing subagent
+        A and B completed, but subagent C was mid-execution when the crash occurred.
+        The coordinator treats C's absence from the manifest as "not started" and
+        simply re-invokes it from the beginning.
+A) Correct — since C's manifest entry is absent, restarting it cleanly from scratch is
+   the appropriate and safe default.
+B) Incorrect — this conflates "not started" with "started but interrupted"; without
+   distinguishing these, the coordinator risks either safely redoing C's work
+   (acceptable if C is idempotent) or, if C had side effects mid-execution, redoing
+   something that shouldn't be repeated — the manifest design needs to capture
+   in-progress state, not just complete/absent.
+C) Correct, and this generalizes to never needing manifests for any subagent whose work
+   might be re-runnable.
+D) Incorrect — the fix is to prevent any crash from ever occurring
+   mid-subagent-execution.
+
+**A15-Q3.** A team implements crash recovery purely by resuming the raw conversation
+        history (`--resume`) for a multi-agent pipeline, with no separate structured
+        state export from each agent.
+A) This is equivalent to structured state manifests, since conversation history
+   technically contains everything that happened.
+B) This works for a single continuous interactive session, but for a multi-agent
+   pipeline with several independently-executing subagents, structured per-agent state
+   exports (a manifest) are the more reliable resumption path — raw history doesn't
+   cleanly capture which discrete units of work completed vs. were interrupted
+   mid-flight across separate agent contexts.
+C) This is strictly better than manifests, since it requires no additional export logic.
+D) This only fails if the crash occurred during compaction specifically.
+
+**A15-Q4.** A coordinator's manifest-based resumption correctly reloads completed
+        subagent findings, but the findings themselves are just raw text blobs with
+        no indication of which stage of the pipeline produced them or what inputs
+        they were derived from.
+A) This is sufficient, since the coordinator can infer the stage from context.
+B) The manifest and its referenced findings should include enough structured metadata
+   (stage, inputs used) for the coordinator to correctly re-inject them into the right
+   point in the resumed pipeline — a raw blob without that context risks being
+   misapplied or re-processed unnecessarily.
+C) This is sufficient as long as findings are sorted alphabetically.
+D) The fix is to avoid manifests entirely and re-run the whole pipeline whenever
+   ambiguity like this exists.
+
+### A16. Provenance and multi-source synthesis (Domain 5)
+
+**A16-Q1.** Two credible sources report different figures for the same statistic (one
+        says a market grew 12%, another says 18%) in the same year. The synthesis
+        agent picks 18% because it "seemed like a more complete, recent-sounding
+        source" and reports only that number as fact.
+A) This is correct handling, since choosing the more authoritative-seeming source is the
+   synthesis agent's job.
+B) Both figures should be preserved with source attribution and explicitly flagged as a
+   contested/conflicting data point, rather than the synthesis agent silently resolving
+   the conflict by picking one.
+C) The lower figure should always be reported, since it's the more conservative
+   estimate.
+D) Neither figure should be reported, since any conflict between sources makes the
+   statistic unusable.
+
+**A16-Q2.** A subagent's finding states a company's revenue figure without noting when
+        that figure was published or collected. Later, synthesis flags an apparent
+        contradiction with a more recent figure from another source, treating it as
+        an inconsistency requiring investigation.
+A) This is correctly flagged as a genuine data-quality problem requiring investigation.
+B) Requiring publication/collection dates in structured findings would likely resolve
+   this — the "contradiction" may simply be a temporal difference (the company's revenue
+   changed over time) rather than a genuine inconsistency, and without dates this can't
+   be distinguished.
+C) The fix is to always use the most recently retrieved finding and discard older ones
+   automatically.
+D) The fix is to remove numerical figures from synthesis output entirely to avoid this
+   class of conflict.
+
+**A16-Q3.** A synthesis agent compresses several subagents' findings into a final
+        report, and in the process, claim-to-source mappings that existed in the
+        original findings (which claim came from which document) are lost — the
+        final report states facts with no attribution at all.
+A) This is acceptable, since a synthesis-level report doesn't need to preserve
+   source-level granularity.
+B) Synthesis should be required to preserve and merge the structured claim-source
+   mappings it receives, carrying attribution through to the final output rather than
+   compressing it away — losing it during synthesis is exactly the failure this task
+   statement addresses.
+C) The fix is to have the coordinator re-derive attribution after the fact by re-reading
+   all original source documents.
+D) The fix is to only report claims that came from a single source, discarding any claim
+   confirmed by multiple sources.
+
+**A16-Q4.** A report combines financial figures, recent news, and technical methodology
+        findings, and the team's synthesis agent renders all three types of content
+        in the same uniform bullet-point-list format for consistency.
+A) This is the correct approach, since uniform formatting is always clearer than mixed
+   formatting.
+B) Different content types are better served by different renderings — financial data as
+   tables, news as prose, technical findings as structured lists — rather than
+   flattening everything into one uniform format, which can obscure the kind of
+   information each section actually represents.
+C) This is correct as long as every bullet point includes a citation.
+D) This is correct only for reports under 1000 words.
+
+---
+
+## Part B — Questions on Your Listed Pointers
+
+### B1. Built-in tool precision (fresh scenarios)
+
+**B1-Q1.** An agent needs to locate every configuration file across a repo named exactly
+       `settings.local.json`, regardless of directory.
+A) `Grep` for the string "settings.local.json" across file contents.
+B) `Glob` with pattern `**/settings.local.json`, since this is a filename match, not a
+   content search.
+C) `Bash` with `cat` piped through `grep` on every file's contents.
+D) `Read` each directory listing manually and scan filenames by eye.
+
+**B1-Q2.** An agent needs to change a single hardcoded API endpoint URL that appears in
+       exactly one place inside a 900-line configuration file, and the surrounding
+       lines are unique.
+A) `Read` the entire file and `Write` it back in full just to change one line.
+B) `Edit` with the unique line (or minimal unique surrounding context) as `old_str` —
+   the lightest-weight, most targeted operation for a single unambiguous change.
+C) `Bash` with `sed -i` targeting a line number obtained separately.
+D) `Grep` to confirm the line exists, then leave it unchanged since confirming existence
+   isn't the same as editing.
+
+**B1-Q3.** An `Edit` call fails because the exact text the agent wants to replace
+       appears twice in a file — once in a comment and once in actual code — and
+       both instances are byte-identical.
+A) Retry the identical `Edit` call, since transient failures like this usually resolve
+   on retry.
+B) Expand `old_str` to include enough unique surrounding context to distinguish the code
+   instance from the comment instance, or fall back to `Read` + `Write` if no such
+   distinguishing context exists.
+C) Delete the comment first via a separate `Bash` command, then retry the original
+   `Edit`.
+D) Use `Glob` to locate the file a second time to refresh its cache before retrying
+   `Edit`.
+
+**B1-Q4.** An agent is asked to understand how authentication flows through an
+       unfamiliar codebase before making any changes.
+A) `Read` every file in the `src/` directory sequentially from the top of the file tree.
+B) Start with `Grep` for authentication-related terms (e.g., `authenticate`,
+   `verifyToken`) to find entry points, then `Read` the specific files that surface,
+   tracing imports/calls from there.
+C) `Glob` for `**/*.ts` and treat the full file list as the trace, without reading any
+   content.
+D) `Bash` to count how many files exist in the project before deciding how to proceed.
+
+### B2. Synthesis agent behaviour
+
+**B2-Q1.** A synthesis agent receives conflicting figures from two subagents for the
+       same statistic and, without flagging anything, quietly reports only the
+       higher figure in the final output.
+A) This is correct, since synthesis's job is to produce one clean, confident-sounding
+   answer.
+B) The synthesis agent should preserve and flag the conflict with source attribution for
+   both values, rather than silently resolving it by picking one.
+C) The synthesis agent should discard both conflicting values and report no statistic at
+   all.
+D) The synthesis agent should average the two figures and report the average as fact.
+
+**B2-Q2.** A synthesis agent is given comprehensive findings from three subagents but
+       produces a report that only reflects one of the three, apparently ignoring
+       the other two entirely, with no error or explanation.
+A) This is likely fine — synthesis is allowed to selectively use only the most relevant
+   subagent's findings.
+B) This is a symptom worth investigating as a coverage failure — the coordinator should
+   check whether all three inputs were actually included in the synthesis prompt, since
+   silently dropped inputs (not "irrelevant" inputs, dropped ones) would produce exactly
+   this outcome.
+C) The fix is always to increase the synthesis agent's context window regardless of
+   what's actually happening.
+D) The fix is to merge all three subagents into one, since three separate agents
+   apparently confuses synthesis.
+
+**B2-Q3.** A synthesis agent is producing a report and, mid-generation, invokes a search
+       tool directly to fill in a fact it's missing, bypassing the coordinator
+       entirely.
+A) This is efficient and should be encouraged for any missing fact, regardless of how
+   minor.
+B) This may indicate the synthesis agent has been over-provisioned with tools outside
+   its role (search capability) rather than routing verification needs through the
+   coordinator or a narrowly scoped verification tool — worth checking whether
+   synthesis's toolset matches its intended, more limited role.
+C) This is fine as long as the search tool has a well-written description.
+D) This is fine as long as the coordinator is informed after the fact via a log message.
+
+**B2-Q4.** A synthesis agent's final report presents every subagent's finding as equally
+       well-supported, with no distinction between findings backed by multiple
+       independent sources and a single finding traceable to one blog post.
+A) This is acceptable, since synthesis's job is to combine findings, not evaluate their
+   reliability.
+B) The report should distinguish well-established findings (multi-sourced, or from
+   stronger sources) from more tentative ones, rather than flattening all findings to
+   the same apparent confidence level.
+C) The fix is to remove single-source findings from the report entirely regardless of
+   their relevance.
+D) The fix is to append a generic disclaimer to the report as a whole rather than
+   annotating individual findings.
+
+### B3. Normalization step usage (fresh scenarios)
+
+**B3-Q1.** A logistics agent pulls delivery status from two carriers: one returns
+       `"delivered"` / `"in_transit"` / `"delayed"` as strings, the other returns
+       numeric codes `1` / `2` / `3` meaning the same three states. The agent
+       occasionally confuses the two carriers' codes when comparing shipments side
+       by side.
+A) Add a `PostToolUse` hook that maps both carriers' outputs into one consistent status
+   vocabulary before the agent reasons over them.
+B) Instruct the agent via system prompt to "remember that carrier B uses numeric codes."
+C) Ask carrier B to change their API, and wait for that change before proceeding.
+D) Have the agent call a separate lookup tool each time to translate carrier B's codes,
+   adding a tool call per comparison.
+
+**B3-Q2.** A team adds a normalization hook to reconcile two currency-returning tools,
+       one of which returns `"$1,240.00"` as a string and the other `1240.00` as a
+       float — but the hook is implemented to always output the *string* format,
+       matching the first tool, even though downstream math logic needs to perform
+       arithmetic on the value.
+A) This fully resolves the inconsistency, since both tools now visibly "look" the same
+   to a human reading the logs.
+B) This half-fixes the problem — the two tools' outputs are now visually consistent, but
+   normalizing toward a non-numeric string format actively works against downstream code
+   that needs to do arithmetic, which needed the numeric form, not the string form, as
+   the normalization target.
+C) This is correct, since currency should always be displayed as a formatted string for
+   clarity.
+D) This is correct as long as the hook also adds a currency symbol to every other
+   numeric field in the system.
+
+**B3-Q3.** A team uses a normalization hook to handle a tool that intermittently returns
+       malformed JSON (missing closing braces) by having the hook attempt to "fix"
+       the JSON by guessing and inserting the missing characters before passing it
+       to the model.
+A) This is a sound use of a normalization hook — reconciling malformed output into a
+   consistent, model-readable shape.
+B) This overextends the normalization pattern into something riskier: guessing at
+   missing structural content isn't reconciling two valid-but-different formats, it's
+   fabricating data to paper over a tool that's actually failing — the more appropriate
+   fix is treating this as a tool error (`is_error`) rather than "normalizing" invented
+   content into the response.
+C) This is sound, but only if the hook logs every guess it makes.
+D) This is sound as long as it's paired with a lower temperature setting on the model.
+
+**B3-Q4.** Two inventory-management tools return stock-location data — one nests
+       location under `warehouse.zone.aisle`, the other returns a single flat
+       `location_code` string encoding the same information in a different shape. An
+       agent frequently misreads one format as the other when cross-referencing both
+       tools in the same task.
+A) A `PostToolUse` hook that maps both into one consistent shape (e.g., always
+   flattening to a common structure) before the agent reasons over them addresses this
+   directly.
+B) The fix is to stop using one of the two tools entirely, since maintaining two data
+   shapes is inherently unreliable.
+C) The fix is to increase the model's context window so it can hold both shapes in mind
+   simultaneously without confusing them.
+D) The fix is a system-prompt instruction listing both shapes in prose, relying on the
+   model to translate between them correctly every time.
+
+### B4. Coordinator/subagent topology for coverage, latency, and reliability
+
+**B4-Q1.** A research task requires reading five independent academic papers with no
+       dependency between them, followed by one synthesis step that needs all five
+       summaries.
+A) Process the five papers strictly sequentially, one Task call per paper across five
+   separate turns, then synthesize.
+B) Dispatch all five paper-analysis subagents in parallel within a single coordinator
+   turn (since they're independent), then synthesize once all five have returned —
+   minimizing latency without sacrificing coverage or reliability.
+C) Use one subagent to read all five papers in sequence within its own single
+   invocation, to avoid coordinator overhead.
+D) Skip subagent delegation entirely and have the coordinator read all five papers
+   itself in one long context.
+
+**B4-Q2.** A task requires: (1) search for background sources, (2) analyze whatever
+       sources were found (which depends entirely on what step 1 returns), then (3)
+       synthesize. Someone proposes dispatching search, analysis, and synthesis as
+       three parallel `Task` calls in a single coordinator turn to save time.
+A) This is correct, since parallel dispatch always reduces latency regardless of task
+   structure.
+B) This is incorrect — analysis genuinely depends on search's output and synthesis
+   depends on analysis's output, so this is a sequential pipeline by nature; dispatching
+   them in parallel means analysis and synthesis would run without the inputs they
+   actually need.
+C) This is correct as long as all three subagents share the same system prompt.
+D) This is correct as long as the coordinator has a large enough context window to hold
+   all three outputs.
+
+**B4-Q3.** A coordinator needs maximum reliability on a research task where a single
+       subagent occasionally returns unreliable results, and cost/latency are
+       secondary concerns for this particular high-stakes report.
+A) Dispatch that step's subagent twice in parallel with the same input, and reconcile or
+   flag disagreement between the two independent runs — a legitimate use of redundancy
+   when reliability is prioritized over cost/latency.
+B) Dispatch the step only once, since redundant subagent calls are never worth the added
+   cost regardless of the stakes.
+C) Replace subagent delegation with a fixed prompt chain, since chains are inherently
+   more reliable than any subagent-based approach.
+D) Increase that subagent's temperature to 0.9 to introduce beneficial variation across
+   identical calls.
+
+**B4-Q4.** A coordinator dispatches four independent subagents in parallel to save
+       latency, but the task actually only benefits from two distinct source types
+       (web and internal docs); the other two subagents were assigned redundant,
+       overlapping search scopes that produce largely duplicate findings.
+A) Parallel dispatch was still the correct latency choice; the actual defect is in
+   decomposition, not topology — the coordinator should partition the four subagents
+   across genuinely distinct scopes so parallelism buys coverage, not duplicate work
+   paid for twice.
+B) The fix is to switch from parallel to sequential dispatch, since sequential naturally
+   avoids duplicate scopes.
+C) The fix is to reduce back to a single subagent, since four was clearly too many
+   regardless of scope assignment.
+D) The fix is to increase each subagent's temperature so duplicate scopes produce more
+   varied (and therefore less redundant-looking) results.
+
+### B5. Agentic loops emitting multiple tool calls in one turn
+
+**B5-Q1.** An agent needs current prices for 8 independent stock tickers to answer a
+       comparison question, with no dependency between the lookups.
+A) Emit one `tool_use` block per turn, waiting for each result before issuing the next
+   call, across 8 sequential turns.
+B) Emit all 8 `tool_use` blocks within a single assistant turn, letting the harness
+   execute them in parallel and return all 8 `tool_result` blocks together in the next
+   user message.
+C) Combine the 8 lookups into a single custom tool call, since this is always strictly
+   better than multiple parallel `tool_use` blocks.
+D) Delegate each ticker to a separate `Task` subagent, since parallelizing independent
+   work is inherently a subagent-delegation concern.
+
+**B5-Q2.** A harness receives an assistant turn containing three `tool_use` blocks with
+       ids `toolu_1`, `toolu_2`, `toolu_3`. What must the next request's `messages`
+       array contain to correctly continue the conversation?
+A) Three separate consecutive user messages, each containing one matching `tool_result`
+   block.
+B) The original assistant message with all three `tool_use` blocks, followed by a single
+   new user message containing three separate `tool_result` blocks — one per id — since
+   all three answer the same prior turn.
+C) A single `tool_result` block covering only the first tool call, with the other two
+   silently dropped since they were exploratory.
+D) A system message summarizing all three tool outputs as one combined string.
+
+**B5-Q3.** An agent is asked to look up a customer's order status and, separately,
+       whether that same customer has any open support tickets — two lookups that
+       don't depend on each other's results.
+A) The model should be enabled to emit both `tool_use` blocks (order lookup and ticket
+   lookup) in the same turn, since neither call needs the other's output first.
+B) The two lookups must always be sequenced, order lookup first, since customer-related
+   lookups are inherently ordered by convention.
+C) The two lookups should be merged into a single tool requiring both inputs be looked
+   up by one call, since consolidating is always preferable to two separate parallel
+   calls.
+D) The ticket lookup should be skipped entirely unless the order lookup returns a
+   flagged status, to reduce tool calls.
+
+**B5-Q4.** A team observes that when their model emits multiple `tool_use` blocks in a
+       single turn, one of the tool calls depends on a value that should have come
+       from a different tool call in that same batch — but since all calls in the
+       batch execute at once, that dependent call fails or receives stale input.
+A) This confirms parallel tool calls are broadly unsafe and should never be used.
+B) This reveals a decomposition error, not a flaw in parallel execution itself —
+   genuinely dependent calls (where one needs another's output) shouldn't be batched
+   into the same parallel turn; only calls that are truly independent of each other
+   belong together in one turn.
+C) The fix is to increase the model's context window so it can track the dependency
+   internally.
+D) The fix is to always execute batched tool calls in reverse order to catch dependency
+   issues.
+
+### B6. Session resumption — targeted reanalysis and context injection
+
+**B6-Q1.** A developer's multi-hour session investigating a bug across 15 files crashes.
+       Since the crash, two of those 15 files have been modified by a teammate in a
+       separate branch merge.
+A) Resume the session as-is with `--resume` and proceed without mentioning the merge,
+   trusting the agent to notice the files changed on its own.
+B) Resume the session, but explicitly inform the agent which specific files changed
+   since the crash, so it can targetedly re-analyze just those files rather than
+   assuming its prior analysis of them is still valid or re-exploring everything from
+   scratch.
+C) Start an entirely new session and re-explain the full 15-file investigation from
+   zero, discarding all prior context.
+D) Avoid resuming or restarting — instead, have a different developer take over the
+   investigation independently.
+
+**B6-Q2.** A team debates whether to resume a stale session (where several tool results,
+       like file contents and API responses, are now outdated) or start a new
+       session with an injected summary of prior findings.
+A) Resuming is always preferable, since it preserves the complete original context
+   regardless of staleness.
+B) When prior tool results are stale, starting fresh with a structured summary of prior
+   findings is often more reliable than resuming — resuming re-surfaces now-outdated
+   tool outputs as if they were still current, which can mislead reasoning, whereas a
+   summary can state what's known without re-presenting stale raw data as fresh.
+C) Starting fresh is always preferable, regardless of how much prior context would need
+   to be reconstructed.
+D) Neither works — a completely new investigation must be started from scratch whenever
+   any staleness exists.
+
+**B6-Q3.** A resumed session correctly reloads its prior conversation history, but the
+       agent then makes a change to a function whose signature was actually altered
+       by another developer after the crash — information the resumed session has no
+       way of knowing unless told.
+A) This is unavoidable and resuming sessions can never account for external changes.
+B) This is exactly the scenario where explicitly informing the resumed agent about the
+   specific external change (the altered signature) is necessary — resumption restores
+   the agent's own prior state, not omniscience about changes made outside that state.
+C) The fix is to avoid resuming any session more than once.
+D) The fix is to increase the model's context window so it can somehow detect external
+   changes automatically.
+
+**B6-Q4.** A developer resumes a named session (`--resume feature-x-investigation`) two
+       days later to continue work, and wants the agent to re-analyze only the two
+       files that changed in the interim, not the entire feature area again.
+A) This requires starting a completely new session, since named session resumption
+   doesn't support partial re-analysis.
+B) This is achievable within the resumed session: informing the agent of the specific
+   two changed files lets it target its re-analysis to just those files, using its
+   already-restored context for everything else rather than re-exploring the whole
+   feature area.
+C) This requires manually deleting the other 13 files' history from the session before
+   resuming.
+D) This requires switching to `fork_session` instead of `--resume`, since forking is
+   required for any partial re-analysis.
+
+### B7. Goal-oriented vs. procedural subagent delegation, with coordinator visibility
+
+**B7-Q1.** A coordinator delegates to a document-analysis subagent with the instruction:
+       "Open each PDF, extract page 1, then page 2, then page 3 in that exact order,
+       summarizing each individually before moving to the next." A different,
+       harder-to-anticipate document structure (a PDF with an unusual page order)
+       causes the subagent to fail rigidly rather than adapt.
+A) This is the correct level of instruction detail, since procedural specificity always
+   reduces subagent error.
+B) A goal-oriented instruction ("extract and summarize the key findings from this
+   document, regardless of structure") would let the subagent adapt to unusual document
+   structures, whereas the rigid page-by-page procedure breaks exactly when the document
+   doesn't match the assumed shape.
+C) The fix is to add even more procedural detail, specifying instructions for every
+   possible page-order variation in advance.
+D) The fix is to remove the subagent and have the coordinator process every document
+   itself.
+
+**B7-Q2.** A coordinator gives subagents purely goal-oriented instructions ("research
+       this topic thoroughly") with no visibility mechanism — subagents return only
+       final summaries, with the coordinator unable to see what queries were run,
+       what sources were checked, or what was rejected along the way.
+A) This is the correct application of goal-oriented delegation — visibility isn't
+   necessary once subagents are trusted to interpret goals.
+B) Goal-oriented instructions and coordinator visibility are separate concerns — the
+   coordinator can still require subagents to report back what they did (queries run,
+   sources considered) alongside their goal-oriented output, preserving observability
+   and adaptability at the same time, rather than trading one for the other.
+C) The fix is to switch back to fully procedural instructions, since only procedural
+   delegation permits visibility.
+D) The fix is to have the coordinator re-derive what happened by independently repeating
+   each subagent's work.
+
+**B7-Q3.** A subagent given a goal-oriented instruction ("assess whether this codebase
+       follows secure coding practices") interprets "secure coding practices"
+       idiosyncratically and flags stylistic nitpicks as security issues, while
+       missing an actual SQL injection vulnerability.
+A) This means goal-oriented instructions are inherently unreliable and procedural
+   instructions should always be used instead.
+B) This suggests the goal itself needs sharper criteria (what specifically counts as a
+   security issue vs. a style issue), not necessarily a switch to rigid procedural steps
+   — the fix is refining what "secure coding practices" means operationally, while
+   keeping the adaptability goal-oriented delegation offers for varied codebases.
+C) The fix is to remove all task framing and let the subagent decide entirely on its own
+   what to look for.
+D) The fix is to run the same subagent five times and average the findings.
+
+**B7-Q4.** A coordinator delegating research to subagents wants to preserve its ability
+       to intervene mid-task if a subagent goes off-track, without dictating every
+       step upfront.
+A) Use purely procedural, step-locked instructions, since only procedural delegation
+   allows the coordinator to intervene.
+B) Use goal-oriented instructions paired with structured intermediate reporting (e.g.,
+   the subagent periodically reports interim findings or its current approach back
+   through the coordinator), preserving both subagent adaptability and coordinator
+   oversight.
+C) Avoid subagent delegation entirely, since any delegation removes coordinator control
+   by definition.
+D) Delegate with no instructions at all beyond the topic name, maximizing subagent
+   autonomy.
+
+### B8. Subagent role constraint via tools + context scoping + system prompt
+
+**B8-Q1.** A "synthesis" subagent is given the full toolset available to the system —
+       including web search, database write access, and email-sending tools — "just
+       in case it needs them."
+A) This is fine, since more available tools never actively cause harm as long as the
+   system prompt says which ones to prefer.
+B) This should be scoped down: the subagent's tool access, its injected context, and its
+   system prompt should all constrain it to its actual role (synthesis) — giving it
+   write/email tools outside that role increases both misuse risk and
+   selection-confusion risk, regardless of prompt wording.
+C) This is fine as long as the write and email tools have very detailed descriptions.
+D) This is fine as long as a `PostToolUse` hook reviews every action after the fact.
+
+**B8-Q2.** A subagent's system prompt says "you are a research synthesis agent," but its
+       toolset includes a `send_customer_email` tool left over from a shared
+       tool-registration script, and its injected context includes unrelated
+       customer PII from a different part of the system it has no role-based need
+       for.
+A) The system prompt alone is sufficient to constrain behavior; toolset and context
+   scoping are secondary concerns.
+B) All three layers matter and should align: the system prompt describes the role, but
+   tool restriction and context scoping are what actually enforce the boundary — a
+   mismatched toolset or leaked unrelated context can lead to role violations the prompt
+   alone won't reliably prevent.
+C) This is fine, since the subagent will simply ignore tools and context that don't
+   match its described role.
+D) The fix is only to remove the PII from context; the tool access is a separate,
+   unrelated concern.
+
+**B8-Q3.** A coordinator wants a "web search" subagent to be structurally incapable of
+       writing to any file or database, not just discouraged from doing so by
+       instruction.
+A) Add a system-prompt line telling the subagent "do not write to files or databases
+   under any circumstances."
+B) Restrict the subagent's actual tool access (via its `AgentDefinition`/`allowedTools`)
+   to exclude any write or database tools entirely, so the constraint is structural
+   rather than relying on the subagent choosing to comply.
+C) Grant full tool access but add a `PostToolUse` hook that reverses any write action
+   after it occurs.
+D) Rely on the subagent's own system prompt describing its role as sufficient, since
+   well-described roles are self-enforcing.
+
+**B8-Q4.** A subagent role-constraint review finds: correct system prompt describing the
+       role, correctly restricted toolset matching that role — but the subagent's
+       injected context includes an entire unrelated customer's case history "just
+       in case it's useful later."
+A) This is acceptable, since the tool and prompt layers are already correctly
+   configured.
+B) Context scoping is the third layer that matters independently of tool restriction and
+   system prompt — including unrelated context increases the chance the subagent reasons
+   about or leaks information outside its actual task scope, even with correct tools and
+   prompt.
+C) This is acceptable as long as the unrelated context is placed at the very end of the
+   prompt.
+D) This is acceptable as long as the subagent is explicitly told to "ignore irrelevant
+   context."
+
+### B9. Diagnosing misconfigured subagent spawning
+
+**B9-Q1.** A coordinator agent attempts to delegate research to a subagent via `Task`,
+       but the call fails outright — the coordinator behaves as if the `Task`
+       mechanism doesn't exist at all.
+A) This is likely a prompt-wording issue — rephrase the delegation instruction more
+   clearly.
+B) This is likely a missing-permission issue — `Task` must be explicitly included in the
+   coordinator's `allowedTools` for it to be able to invoke subagents at all; check that
+   configuration first.
+C) This is likely a context-window issue — increase the coordinator's context window.
+D) This is likely a temperature issue — lower the coordinator's temperature so it
+   commits to the delegation decision.
+
+**B9-Q2.** A coordinator successfully calls `Task`, and a subagent runs, but the
+       subagent behaves completely unlike its intended specialized role (e.g., a
+       "document analysis" subagent behaves generically, with no domain-specific
+       instructions or tool restrictions applied).
+A) This points to a likely `AgentDefinition` configuration problem — check whether the
+   subagent's definition (system prompt, tool restrictions) was actually correctly
+   specified and wired to this particular `Task` invocation, rather than a
+   default/generic definition being used.
+B) This is a coordinator context-window issue — increase it.
+C) This is a `stop_reason` issue — check whether the subagent's turn ended on `end_turn`
+   instead of `tool_use`.
+D) This is a hook issue — a `PreToolUse` hook is likely blocking the subagent's intended
+   tools.
+
+**B9-Q3.** A subagent completes its work and returns a result, but the coordinator's
+       subsequent synthesis step behaves as though it never received that subagent's
+       output at all.
+A) This is likely a `Task` permission issue on the coordinator's side, identical to
+   B9-Q1's failure mode.
+B) This points to a coordinator-to-subagent (or subagent-to-coordinator) wiring problem
+   — the subagent's result may not actually be getting passed into the coordinator's
+   next prompt/context, which is a distinct failure from the subagent not running at all
+   or not being configured correctly.
+C) This is a `stop_reason` misread — the coordinator is likely treating "tool_use" as
+   "end_turn."
+D) This is always caused by the subagent's own `AgentDefinition` being misconfigured,
+   identical to B9-Q2.
+
+**B9-Q4.** Given only the symptom "subagents run, apparently do their job, but the final
+       report is missing content that at least one subagent should have
+       contributed," which single diagnostic question most efficiently narrows down
+       the cause?
+A) "Was `Task` included in `allowedTools`?" — since the subagents evidently ran, this
+   specific permission clearly isn't the blocking issue here.
+B) "Did the coordinator's synthesis prompt actually include that subagent's returned
+   findings, or were they dropped somewhere in the handoff?" — this targets the wiring
+   layer specifically implicated by "subagents ran fine, but their output didn't make it
+   into the final result."
+C) "What model tier is the subagent using?" — unrelated to whether output is
+   incorporated into synthesis.
+D) "Is the subagent's temperature set to 0?" — unrelated to whether its output reaches
+   synthesis.
+
+### B10. Dynamic subtask decomposition adapting to new information
+
+**B10-Q1.** An agent is investigating "why did our conversion rate drop last month," and
+        generates an initial plan: check recent deploys, check traffic sources,
+        check pricing changes. Checking recent deploys reveals a specific
+        checkout-page change; this finding should reasonably narrow and redirect the
+        rest of the investigation.
+A) The agent should complete all three originally planned checks regardless of what the
+   deploy check found, since abandoning a pre-set plan mid-investigation is unreliable.
+B) The agent should adapt its plan based on the deploy finding — e.g., prioritizing a
+   deep-dive into the checkout-page change and possibly deprioritizing the pricing check
+   — since this is exactly the open-ended, findings-dependent investigation that calls
+   for dynamic decomposition rather than a fixed upfront plan.
+C) The agent should restart the investigation from scratch now that new information has
+   emerged.
+D) The agent should hand the entire investigation off to a single subagent to avoid
+   needing to adapt the plan itself.
+
+**B10-Q2.** A team hard-codes a fixed 6-step investigation plan applied identically to
+        every "why did X change" question the agent receives, regardless of what
+        earlier steps in a given run reveal.
+A) This is appropriate, since fixed sequences are always more reliable than adaptive
+   ones.
+B) This over-applies prompt chaining to a task that's inherently open-ended and branches
+   on intermediate findings — which specific follow-up matters depends on what earlier
+   steps actually discover, so a single fixed sequence can't represent every
+   investigation's actual shape.
+C) This is appropriate as long as the 6 steps are reordered randomly each run.
+D) This is appropriate as long as the plan has at least 10 steps instead of 6.
+
+**B10-Q3.** An agent dynamically decomposing an open-ended investigation generates a new
+        subtask after each finding, but with no mechanism to recognize when the
+        investigation has actually reached a satisfying conclusion — it keeps
+        generating new subtasks indefinitely.
+A) This confirms dynamic decomposition is unreliable and a fixed plan should be used
+   instead.
+B) Dynamic decomposition needs its own stopping criteria (e.g., a check for whether the
+   current findings actually explain the original question) — adaptability in
+   *generating* subtasks doesn't automatically include a mechanism for *recognizing
+   sufficiency*; that needs to be designed in separately.
+C) The fix is to cap the investigation at exactly 3 subtasks regardless of content,
+   restoring fixed-length behavior.
+D) The fix is to lower the temperature so subtask generation converges naturally without
+   an explicit stopping check.
+
+**B10-Q4.** A task ("generate a quarterly compliance summary for 50,000 accounts using
+        an identical 4-step process each time") is run through a dynamic,
+        re-planning agentic loop that re-evaluates "what should I do next"
+        independently for every single account.
+A) This is the correct use of dynamic decomposition, since any workload processing
+   multiple items benefits from re-evaluation per item.
+B) This over-applies dynamic decomposition to a task that's actually fixed-order and
+   identical per account — the account-level process doesn't branch based on findings,
+   so it fits explicit prompt chaining (a fixed sequence per account) far better,
+   avoiding the unnecessary "what's next" reasoning overhead multiplied 50,000 times.
+C) This is correct, but should be paired with delegating each account to its own `Task`
+   subagent for correctness.
+D) This is correct as long as the 4 steps are randomized in order per account to avoid
+   overfitting to one sequence.
+
+### B11. State persistence for multi-agent pipeline resumption
+
+**B11-Q1.** A multi-agent document-processing pipeline is interrupted after processing
+        340 of 500 documents. The team wants to resume without reprocessing the
+        completed 340 or losing their extracted findings.
+A) Restart the pipeline from document 1, since partial multi-agent state is inherently
+   untrustworthy.
+B) Have each processing agent persist its per-document completion status and findings to
+   a durable store as it finishes, so on resume the pipeline can load that state and
+   continue from document 341 onward, with the 340 findings already available rather
+   than needing to be regenerated.
+C) Increase the context window so all 500 documents' full processing state fits into one
+   session regardless of interruption.
+D) Manually re-enter the 340 completed findings by hand before resuming automated
+   processing.
+
+**B11-Q2.** A pipeline's state-persistence design saves only a single "documents
+        processed: 340" counter, with no record of which specific 340 documents or
+        what their individual findings were.
+A) This is sufficient for reliable resumption, since the counter tells the pipeline
+   exactly where to resume.
+B) This is insufficient — a bare counter doesn't identify *which* documents were
+   completed or preserve their findings; true resumability requires persisting per-item
+   identity and results, not just an aggregate count, especially if documents aren't
+   guaranteed to process in a strict fixed order.
+C) This is sufficient as long as documents are always processed in exactly the order
+   they were originally submitted, with no exceptions ever.
+D) This is sufficient as long as the pipeline is restarted within 24 hours of the
+   interruption.
+
+**B11-Q3.** A team's state-persistence approach re-runs a document through the full
+        pipeline every time state is saved, even for documents that already
+        completed, "just to be safe."
+A) This is a sound conservative approach, since redundant reprocessing guarantees
+   correctness.
+B) This defeats the purpose of persisting state at all — reprocessing already-completed
+   documents wastes the exact effort persistence is meant to avoid; state persistence
+   should let genuinely completed work be skipped on resumption, with reprocessing
+   reserved for documents that were actually interrupted or failed.
+C) This is sound as long as reprocessing happens in a separate subagent from the
+   original processing.
+D) This is sound as long as it only happens for documents that took under 5 seconds to
+   process originally.
+
+**B11-Q4.** A multi-agent pipeline persists state per-document, but two different agents
+        (extraction and validation) write to the same state record without any
+        coordination, and a race condition sometimes causes validation's write to
+        overwrite extraction's findings for a document processed by both in close
+        succession.
+A) This is an acceptable and expected tradeoff of any state-persistence design.
+B) This points to a design gap in how the persisted state is structured/coordinated —
+   persistence needs a scheme (e.g., distinct fields per agent, or ordered writes) that
+   prevents one agent's legitimate write from clobbering another's, not just
+   "persistence exists" as a blanket solution.
+C) The fix is to remove state persistence entirely, since concurrent agents can never
+   safely share persisted state.
+D) The fix is to have only the validation agent ever write state, discarding
+   extraction's need to persist anything.
+
+### B12. Claude Code review configurations: correct standards + restricted tool access
+
+**B12-Q1.** A team sets up an automated review configuration that correctly loads the
+        project's `CLAUDE.md` coding standards, but grants the review agent
+        unrestricted `allowed-tools`, including `Bash` with full shell access and
+        `Write` to any file in the repo.
+A) This is fine, since a review task is read-only in nature regardless of what tools are
+   technically available.
+B) The tool access should be restricted to match the actual review task — read/analysis
+   tools, without `Write` or broad `Bash` access — since an unrestricted toolset creates
+   unnecessary risk (accidental or unintended file modification) for a task that doesn't
+   need those capabilities.
+C) This is fine as long as the `CLAUDE.md` standards mention not to modify files.
+D) This is fine as long as the review is run in `plan mode`, since plan mode alone
+   prevents any tool execution.
+
+**B12-Q2.** A review configuration restricts tool access appropriately (read-only), but
+        is pointed at the wrong `CLAUDE.md` — a stale copy from a different project,
+        containing outdated conventions.
+A) This is fine, since tool restriction is the more important half of a correct review
+   configuration.
+B) Both halves matter independently — correctly scoped tool access doesn't compensate
+   for loading the wrong standards; the review agent needs both the *correct* standards
+   and the *appropriately restricted* tools to produce useful, safe output.
+C) This is fine as long as the stale `CLAUDE.md` is at least syntactically valid.
+D) This is fine as long as the reviewer is told verbally in the prompt which conventions
+   are outdated.
+
+**B12-Q3.** A team wants their PR-review agent to load only the relevant path-scoped
+        `.claude/rules/` for the specific files being changed in a given PR, rather
+        than the entire repo's full rule set every time, to keep the review focused
+        and reduce irrelevant context.
+A) This isn't possible — all `.claude/rules/` files always load for every session
+   regardless of what files are involved.
+B) This is exactly what glob-scoped `.claude/rules/` files are designed to do — a rule
+   with `paths: ["src/api/**"]` only loads when files matching that pattern are actually
+   touched, naturally scoping the review to relevant conventions per PR.
+C) This requires switching from `.claude/rules/` to a single monolithic `CLAUDE.md` with
+   manual section selection.
+D) This requires a custom MCP server built specifically to filter rule files.
+
+**B12-Q4.** A review configuration correctly restricts tool access and loads the correct
+        standards, but the standards file itself is a single giant `CLAUDE.md`
+        covering unrelated conventions for five different subsystems, most of which
+        are irrelevant to any given PR.
+A) This is fine, since loading extra irrelevant content never causes harm as long as the
+   relevant section is present somewhere in the file.
+B) This dilutes the review's effective focus — even with correct tool restriction, an
+   oversized, mostly-irrelevant standards file competes for attention with the
+   actually-relevant conventions; splitting into path-scoped `.claude/rules/` files (per
+   B12-Q3) would let only the relevant subset load per review.
+C) This is fine as long as the file is sorted alphabetically by subsystem.
+D) This is fine as long as the tool restriction is made even stricter to compensate.
+
+### B13. `context: fork` on skills and slash commands
+
+**B13-Q1.** A team builds a `/deep-audit` skill that performs a verbose, multi-step
+        codebase audit generating pages of exploratory output — logs, intermediate
+        notes, discarded hypotheses — before producing a final summary. Currently
+        this all happens inline in the main session, and the verbose intermediate
+        output crowds out the main conversation's context for the rest of the
+        session.
+A) Add `context: fork` to the skill's frontmatter, so the audit runs in an isolated
+   sub-agent context and only the final summary (not the verbose intermediate
+   exploration) returns to and pollutes the main session.
+B) Convert the skill into a `CLAUDE.md` instruction instead, since `CLAUDE.md` doesn't
+   generate verbose output.
+C) Increase the main session's context window so the verbose output no longer crowds
+   anything out.
+D) Run the skill twice — once normally, once with a shorter prompt — and keep whichever
+   produces less output.
+
+**B13-Q2.** A slash command `/brainstorm-approaches` is meant to explore several
+        alternative implementation strategies experimentally, including some that
+        will ultimately be discarded, without those discarded explorations affecting
+        the main session's ongoing state or being mistaken for committed decisions
+        later in the conversation.
+A) `context: fork` is well-suited here — it isolates the brainstorming exploration so
+   discarded alternatives don't linger in or contaminate the main session's context as
+   if they were decisions actually made.
+B) `context: fork` doesn't apply to slash commands, only to skills.
+C) The fix is to run the brainstorm directly in the main session but prefix every
+   message with "HYPOTHETICAL:" so it's clear these aren't decisions.
+D) The fix is to disable compaction for the rest of the session so nothing about the
+   brainstorm gets lost.
+
+**B13-Q3.** A skill uses `context: fork`, and the team assumes this means the forked
+        skill automatically has access to everything discussed in the main session
+        up to that point, including recent unrelated conversation.
+A) Correct — forking always inherits full parent context automatically by default.
+B) This needs verifying rather than assuming — context passed into a fork isn't
+   necessarily the same as automatic full inheritance of the parent's entire recent
+   history; whatever context the fork actually needs should be deliberately included
+   rather than assumed to arrive for free.
+C) Correct, and this is exactly why forking is considered risky and should be avoided.
+D) Correct, but only for skills, not for `Task`-based subagents, which behave
+   oppositely.
+**B13-Q4.** A team applies `context: fork` to a very simple, one-line slash command
+        (`/format-date`) that trivially reformats a date string with no meaningful
+        exploratory or verbose output at all.
+A) This is a good default — always apply `context: fork` to every skill and command
+   regardless of complexity, since isolation is never harmful.
+B) This is likely unnecessary overhead — `context: fork`'s value comes from isolating
+   verbose or exploratory output that would otherwise pollute the main session; a
+   trivial, single-purpose command has nothing worth isolating, so forking mostly adds
+   overhead without a corresponding benefit here.
+C) This is required, since all slash commands must use `context: fork` by specification.
+D) This is required only if the command's `argument-hint` is missing.
+
+### B14. Integrating MCP servers — correct server scope
+
+**B14-Q1.** A team builds a custom MCP server wrapping their internal deployment system,
+        intended for use by every engineer on the team, version-controlled alongside
+        the rest of the repo's configuration.
+A) Configure it in each engineer's personal `~/.claude.json` individually, copy-pasted
+   across machines.
+B) Configure it in the project's `.mcp.json`, so it's shared, version-controlled, and
+   automatically available to every engineer who has the repo.
+C) Configure it as a `.claude/skills/` entry instead, since skills are the correct
+   container for anything team-wide.
+D) Configure it as an MCP resource rather than a server, since resources are inherently
+   more shareable.
+
+**B14-Q2.** An individual engineer wants to try out a brand-new, unreleased community
+        MCP server for personal productivity experiments, without affecting any
+        teammate's configuration or committing anything to the shared repo.
+A) Add it to the project's `.mcp.json` temporarily, and remember to remove it before
+   committing.
+B) Add it to their personal `~/.claude.json`, which keeps it available only to them
+   without touching shared, version-controlled configuration.
+C) Add it as a new custom MCP tool description inside `CLAUDE.md`.
+D) Request that the whole team install it via `.mcp.json` first, then experiment with it
+   once it's shared.
+
+**B14-Q3.** A shared MCP server in `.mcp.json` requires a per-developer API token, and
+        the team wants the config file itself to be safely committed to version
+        control without leaking anyone's actual token value.
+A) Commit the file with one team member's token hardcoded, and have everyone else use
+   that same token.
+B) Use `${ENV_VAR}` expansion syntax in `.mcp.json` (e.g., `${DEPLOY_API_TOKEN}`) so the
+   committed file references an environment variable name, and each developer supplies
+   their own actual token value locally, outside version control.
+C) Leave the server out of `.mcp.json` entirely and have each developer configure it
+   manually, from memory, every time they set up a new machine.
+D) Store the token directly in the MCP server's source code, since environment variables
+   aren't supported.
+
+**B14-Q4.** A project has an MCP server correctly configured in project-scoped
+        `.mcp.json`, and a developer separately configures the same server (pointing
+        to a different, personal test instance) in their own `~/.claude.json`.
+A) This will cause a hard configuration error, since the same server can't be defined in
+   two scopes simultaneously.
+B) Both configurations are discovered and available; the developer should be aware they
+   now potentially have two versions of the same-named server available in their session
+   (project and personal), which is worth confirming doesn't cause ambiguity in which
+   one gets used for a given task.
+C) The personal-scope definition is always silently ignored whenever a project-scope
+   definition with the same server exists.
+D) The project-scope definition is always silently ignored whenever a personal-scope
+   definition with the same server exists.
+
+### B15. MCP tool description writing — distinguishing semantically similar tools
+
+**B15-Q1.** Two MCP tools, `fetch_record` and `get_record`, both described only as
+        "Retrieves a record." They differ in that `fetch_record` retrieves from a
+        live external API (slower, rate-limited) while `get_record` retrieves from a
+        local cache (fast, may be slightly stale). The agent frequently picks
+        whichever tool name it encounters first, regardless of which behavior is
+        actually appropriate.
+A) Rename `get_record` to `fetch_record_v2` to signal it's the newer,
+   generally-preferred option.
+B) Rewrite both descriptions to explicitly state the behavioral difference (live
+   external API vs. local cache; speed/freshness tradeoff) so the model can choose based
+   on the actual requirement (freshness-critical vs. speed-critical) rather than
+   arbitrary ordering.
+C) Remove `get_record` entirely, since having two similarly-purposed tools is inherently
+   a problem regardless of their actual behavioral difference.
+D) Add a `mode` parameter to `fetch_record` that internally decides whether to hit the
+   cache or the live API, without changing either tool's description.
+
+**B15-Q2.** An MCP server exposes `summarize_document` and `extract_key_points`, both
+        with detailed, well-written but *functionally overlapping* descriptions —
+        both mention "producing a condensed version of the document's content" as
+        their core purpose, with no clear differentiator.
+A) The descriptions being long and detailed is sufficient regardless of whether they
+   actually distinguish the two tools' purposes from each other.
+B) Length and detail aren't the same as differentiation — the descriptions need to state
+   *how* the two outputs actually differ (e.g., prose narrative summary vs. structured
+   bulleted key-point extraction) so the model can select correctly between genuinely
+   similar-sounding tools, not just be told more about each in isolation.
+C) The fix is to merge both into one tool called `condense_document`, since
+   consolidation always resolves description overlap.
+D) The fix is to add more few-shot examples to the system prompt rather than touching
+   either tool's description.
+
+**B15-Q3.** A team notices their agent frequently calls `analyze_transaction` when the
+        user's request actually calls for `flag_suspicious_transaction` — a
+        different, more specialized tool. Investigation reveals the system prompt
+        contains the phrase "always analyze transactions carefully," which happens
+        to share a keyword with `analyze_transaction`'s name.
+A) This is unrelated to tool selection; the fix must be in the tool descriptions
+   themselves.
+B) System prompt wording can create unintended keyword-level associations that override
+   otherwise well-written tool descriptions — the fix should include reviewing the
+   system prompt for such keyword sensitivity, not just the tool descriptions in
+   isolation.
+C) The fix is to rename `flag_suspicious_transaction` to also contain the word
+   "analyze," so both tools share the keyword equally.
+D) The fix is to remove `analyze_transaction` from the toolset entirely, regardless of
+   whether it's still needed for legitimate cases.
+
+**B15-Q4.** A generic tool `process_document(mode: string)` accepts modes `"summarize"`,
+        `"extract_data"`, and `"verify_claims"` — three functionally distinct
+        operations bundled behind one tool name and one overloaded parameter, each
+        requiring a different description buried inside one combined description
+        string.
+A) This is an acceptable design as long as the combined description is sufficiently long
+   and detailed.
+B) Splitting into purpose-specific tools (`summarize_document`, `extract_data_points`,
+   `verify_claim_against_source`), each with its own focused description and
+   input/output contract, would reduce the selection ambiguity inherent in one
+   overloaded tool with a mode parameter buried in prose.
+C) This is acceptable as long as `tool_choice` is set to `"any"` to force a call
+   regardless of mode confusion.
+D) This is acceptable as long as the tool is renamed to something more general, like
+   `handle_document`.
+
+### B16. MCP tools and resources — reducing exploratory tool calls
+
+**B16-Q1.** An agent working with a support-ticket system has to call a
+        `list_ticket_categories` tool at the start of nearly every session just to
+        learn what categories exist, before it can meaningfully categorize anything.
+A) Leave this as a tool, since any data the model needs to retrieve should be modeled as
+   a tool by default.
+B) Expose the category list as an MCP resource instead — since it's static, discoverable
+   reference content rather than a computed action, this eliminates the near-universal
+   exploratory call at the start of every session.
+C) Have the agent memorize the category list once and never re-check it, even across
+   unrelated sessions.
+D) Add a `PreToolUse` hook that blocks any ticket-categorization action until
+   `list_ticket_categories` has been called at least once, formalizing the exploratory
+   call rather than eliminating it.
+
+**B16-Q2.** A codebase-exploration agent repeatedly calls a `list_project_structure`
+        tool at the start of many unrelated tasks within the same session, since the
+        project's file/module layout doesn't change during the session but isn't
+        persisted anywhere the agent can check without calling the tool again.
+A) This is fine and expected — re-deriving structure at the start of every task is the
+   correct default regardless of whether it changed.
+B) Since this is static content for the duration of the session, exposing it as an MCP
+   resource (or otherwise making it available without a fresh tool call each time) would
+   eliminate the repeated exploratory calls for information that hasn't changed.
+C) The fix is to increase the tool's rate limit so repeated calls are cheaper.
+D) The fix is to convert `list_project_structure` into a required parameter on every
+   other tool, forcing it to always be supplied.
+
+**B16-Q3.** A database-driven agent is given both a `run_query` tool (for arbitrary SQL)
+        and, separately, the full database schema exposed as an MCP resource.
+        Despite the resource being available, the agent still issues several
+        `run_query` calls just to probe table and column names before writing its
+        actual query.
+A) This suggests the resource isn't actually being surfaced to or read by the agent
+   effectively — the fix is to verify the resource is genuinely being made visible/read
+   (e.g., via description or explicit reference) so the agent uses it instead of falling
+   back to exploratory queries it already has an alternative to.
+B) This is expected and cannot be improved — probing via `run_query` is inherently
+   necessary regardless of what resources are available.
+C) The fix is to remove `run_query` entirely, since resources should always replace
+   tools for any data-related need.
+D) The fix is to lower the model's temperature so it stops probing and commits to a
+   query.
+
+**B16-Q4.** A team debates whether a frequently-changing (but read-only,
+        side-effect-free) live inventory count should be modeled as an MCP resource
+        or a tool, given that resources are typically associated with static
+        content.
+A) It must be a tool, since resources can only represent unchanging content by
+   definition.
+B) It can still be modeled as a resource — the determining property is
+   read-only/no-side-effects, not staleness or change-frequency; a resource can
+   represent live, frequently-changing data as long as reading it doesn't compute a
+   derived value from varying inputs or cause side effects.
+C) It must be split into two separate capabilities, one resource for old counts and one
+   tool for current counts.
+D) It must be modeled as a hook, since hooks are the correct mechanism for anything that
+   changes frequently.
+
+### B17. Specialized review passes separating concerns (security / business logic / API
+design)
+
+**B17-Q1.** A single review pass over a PR is asked to check for security issues,
+        business-logic correctness, and API design consistency all at once, using
+        one generic set of few-shot examples covering all three loosely. The team
+        notices security issues get caught reliably, but business-logic issues are
+        frequently missed.
+A) This is expected and acceptable, since no review process can catch every issue
+   category equally well.
+B) Splitting into separate, concern-specific passes — each with its own focused few-shot
+   examples for that concern (security examples for the security pass, business-logic
+   examples for the business-logic pass) — would likely improve recall on the
+   currently-underserved category without necessarily sacrificing the security pass's
+   existing strength.
+C) The fix is to remove the security-focused few-shot examples, since they seem to be
+   crowding out the other concerns.
+D) The fix is to run the same generic pass three times and average results across runs.
+
+**B17-Q2.** A team splits reviews into three concern-specific passes (security, business
+        logic, API design), but gives all three passes the exact same generic
+        few-shot examples, just relabeling which pass they belong to.
+A) This fully realizes the benefit of concern-based splitting, since the passes are now
+   structurally separate.
+B) Structural separation alone doesn't deliver the benefit without concern-specific
+   examples — each pass needs few-shot examples actually representative of *that*
+   concern's characteristic issues; reusing the same generic examples across all three
+   passes undercuts the reason for splitting in the first place.
+C) This is acceptable as long as each pass uses a different model tier.
+D) This is acceptable as long as each pass is run in a separate session.
+
+**B17-Q3.** A team observes that their security-focused review pass, when combined into
+        a single pass with business-logic review, tends to miss subtle security
+        issues in favor of flagging more business-logic issues, and vice versa when
+        the emphasis shifts — a recall tradeoff between the two concerns within one
+        combined pass.
+A) This is unrelated to concern separation and is purely a model-capability limitation
+   with no architectural fix.
+B) This is exactly the kind of recall tradeoff separating concerns into focused passes
+   is meant to prevent — each pass, focused on one concern with matching few-shot
+   examples, isn't competing for attention or recall against a different concern's issue
+   patterns within the same pass.
+C) The fix is to increase the reviewing model's context window, which directly addresses
+   recall tradeoffs between concerns.
+D) The fix is to alternate which concern is emphasized on each PR, rotating focus rather
+   than running dedicated passes.
+
+**B17-Q4.** A team implements three concern-specific review passes, but runs them in a
+        way where the business-logic pass's few-shot examples inadvertently include
+        a security-relevant example (mislabeled), effectively re-introducing some of
+        the cross-concern confusion the split was meant to avoid.
+A) This is a minor, inconsequential detail, since the pass will still generally focus on
+   business logic regardless of one mislabeled example.
+B) This partially undermines the purpose of the split — few-shot examples are a primary
+   signal for what a pass should attend to, so a mislabeled example bleeding a different
+   concern back into a supposedly focused pass reintroduces some of the same
+   cross-concern interference the separation was designed to prevent.
+C) This is fine as long as the security pass doesn't have a similarly mislabeled
+   example.
+D) This is fine as long as the passes are still run in three separate API calls,
+   regardless of example content.
+
+### B18. JSON schema and `tool_choice` to enforce structured compliance
+
+**B18-Q1.** A structured-extraction pipeline needs the model to *always* return a
+        `tool_use` block, never plain text, for every document — including unusually
+        formatted ones the pipeline hasn't seen before.
+A) Set `tool_choice` to `"auto"`, since this gives the model maximum flexibility to
+   decide the best response format per document.
+B) Force the specific extraction tool via `tool_choice: {"type": "tool", "name":
+   "extract_fields"}`, guaranteeing a `tool_use` block every time, while designing the
+   schema itself (nullable fields, an "unclear"/"other" pattern) to honestly represent
+   hard-to-parse cases instead of relying on the model escaping into prose.
+C) Set `tool_choice` to `"any"`, since this is functionally identical to forcing a
+   specific named tool.
+D) Leave `tool_choice` unset and add a system-prompt instruction insisting the tool
+   always be used.
+
+**B18-Q2.** A pipeline has three different extraction schemas depending on document
+        type, and the document type isn't known in advance. The team wants to
+        guarantee the model calls *some* extraction tool (matching whichever schema
+        fits), without pre-forcing one specific tool by name.
+A) `tool_choice: "auto"`, since "auto" is the most flexible general-purpose setting.
+B) `tool_choice: "any"` — this guarantees a tool call happens (unlike "auto," which
+   permits plain text), while still letting the model choose which of the three schemas
+   actually fits the document, unlike forcing one specific named tool upfront.
+C) Force a single combined tool covering all three document types' fields
+   simultaneously, since consolidating removes the need for `tool_choice` configuration
+   at all.
+D) Leave `tool_choice` unset, since schema selection should always be left entirely to
+   system-prompt instruction.
+
+**B18-Q3.** A JSON schema for an invoice-extraction tool passes strict validation
+        (correct types, all required fields present) on every extraction, yet a
+        downstream process discovers that several "valid" extractions have negative
+        `total_amount` values or line items that don't sum to the stated total.
+A) This proves the JSON schema approach doesn't actually guarantee anything and should
+   be abandoned.
+B) Strict schema validation via tool use eliminates *syntax* errors (wrong types,
+   missing fields) but doesn't prevent *semantic* errors like implausible or
+   internally-inconsistent values — a separate semantic/business-rule validation layer
+   is needed for that, which is a distinct guarantee from what `tool_use` + JSON schema
+   alone provides.
+C) The fix is to switch `tool_choice` from "auto" to "any," which will also catch
+   semantic errors.
+D) The fix is to add more required fields to the schema, since semantic errors are cured
+   by making more fields mandatory.
+
+**B18-Q4.** A team wants to guarantee that a specific tool, `extract_metadata`, always
+        runs *before* any of several possible enrichment tools, but leaves the
+        choice of which enrichment tool to run afterward up to the model based on
+        the metadata result.
+A) Set `tool_choice` to force `extract_metadata` specifically on the first turn, then
+   process the following turn(s) with `tool_choice` set to `"auto"` (or `"any"`) so the
+   model can choose the appropriate enrichment tool based on what metadata was found.
+B) Set `tool_choice` to force `extract_metadata` for every turn of the entire
+   conversation, including all enrichment steps.
+C) This can't be achieved with `tool_choice` at all; it requires a `PreToolUse` hook to
+   sequence the calls instead.
+D) Set `tool_choice` to `"any"` for the entire conversation, since "any" already
+   guarantees a specific ordering by default.
+
+### B19. Output truncation on large review tasks → splitting into smaller-scoped API
+tasks
+
+**B19-Q1.** A code-review request covering a 60-file PR in a single API call produces a
+        response that gets cut off mid-review, with `stop_reason: "max_tokens"`,
+        leaving the review incomplete for the later files.
+A) Simply increase `max_tokens` indefinitely for every review request, regardless of PR
+   size, as a universal fix.
+B) Split the review into multiple smaller-scoped API calls (e.g., batches of files, or
+   one call per file) so each individual request's expected output comfortably fits
+   within reasonable output limits, rather than relying on one call to cover an
+   arbitrarily large PR.
+C) Reduce the review's thoroughness instructions so the output is naturally shorter,
+   regardless of PR size.
+D) Ignore the truncation, since a partial review of the first files is still better than
+   no review at all.
+
+**B19-Q2.** A team increases `max_tokens` substantially to avoid truncation on large
+        reviews, and truncation stops occurring — but reviews of very large PRs
+        still show the same attention-dilution symptoms as before (inconsistent
+        depth across files, contradictory findings).
+A) This proves `max_tokens` was never the real issue for output quality — increasing it
+   fixed the truncation failure specifically, but attention dilution across a very large
+   single-pass review is a separate problem (addressed by splitting into
+   per-file/integration passes), not one `max_tokens` alone resolves.
+B) This proves the model has a fundamental capability limitation that no architectural
+   change can address.
+C) The fix is to increase `max_tokens` even further until the dilution symptoms also
+   disappear.
+D) The fix is to lower the temperature, since dilution is caused by generation
+   randomness.
+
+**B19-Q3.** A team splits a large review into smaller-scoped API calls (one per file, to
+        avoid truncation) but each call is given zero context about the other files,
+        causing the review to miss a cross-file bug where two files' changes
+        conflict with each other.
+A) This is an unavoidable and acceptable cost of avoiding truncation — cross-file issues
+   simply can't be caught once you split into smaller calls.
+B) Splitting into smaller-scoped calls to solve truncation is correct, but a *separate*
+   cross-file integration pass (with visibility across the split files) is still needed
+   to catch issues like this — solving truncation via splitting doesn't automatically
+   solve the cross-file-visibility need, which requires its own dedicated pass.
+C) The fix is to revert to one giant single call despite the truncation risk, since
+   that's the only way to preserve cross-file visibility.
+D) The fix is to randomly assign files to review calls instead of splitting by logical
+   grouping, which would somehow catch more cross-file issues.
+
+**B19-Q4.** A team splitting a large review into smaller API calls chooses to split
+        strictly by file *count* (e.g., "10 files per call") rather than by any
+        logical grouping, resulting in some calls covering files from entirely
+        unrelated modules while others happen to split a tightly-coupled pair of
+        files across two different calls.
+A) This is the correct approach, since splitting only needs to satisfy an output-size
+   constraint, and grouping logic is irrelevant.
+B) A more effective split would group files with logical relationships (e.g., files that
+   import each other, or belong to the same module) into the same call where possible,
+   since splitting purely by count risks the exact cross-file-visibility problem
+   (B19-Q3) within calls that arbitrarily separate related files.
+C) This is the correct approach as long as the file count per call is exactly 10, since
+   that number is a documented best practice regardless of file relationships.
+D) This is the correct approach as long as a single additional integration pass is
+   skipped entirely, since count-based splitting is assumed to already handle
+   relationships.
+
+### B20. Reducing false-positive rates via project-specific conventions and accepted
+patterns
+
+**B20-Q1.** An automated review agent repeatedly flags a specific coding pattern as a
+        bug, but the pattern is actually an intentional, well-known convention
+        specific to this team's codebase (e.g., a deliberately unusual null-check
+        idiom used throughout for a documented reason).
+A) Tell the reviewer to "be more conservative" and "only report high-confidence
+   findings" in the system prompt.
+B) Supply the specific accepted pattern directly to the reviewer (e.g., in `CLAUDE.md`
+   or few-shot examples) as a known, intentional convention, so the reviewer can
+   recognize and stop flagging this specific pattern rather than relying on vague
+   conservatism instructions that don't target the actual false-positive source.
+C) Lower the reviewer's temperature to 0, since false positives are caused by sampling
+   variance in pattern recognition.
+D) Remove the review category responsible for null-check-related findings entirely,
+   losing legitimate detections along with the false positive.
+
+**B20-Q2.** A team's fix for a high false-positive rate on a specific finding category
+        is to instruct the reviewer to "only report issues you're highly confident
+        about" for that category, without supplying any actual examples of what
+        should or shouldn't be flagged.
+A) This reliably reduces false positives to an acceptable level, since confidence-based
+   filtering directly targets the problem.
+B) General confidence-based instructions like this tend not to improve precision
+   compared to supplying explicit, concrete criteria or accepted-pattern examples — the
+   model's confidence isn't necessarily calibrated to whether a specific pattern is
+   actually a team-accepted convention, which is what's actually needed here.
+C) This works reliably, but only if paired with a corresponding decrease in
+   `max_tokens`.
+D) This works reliably as long as the instruction is repeated at both the start and end
+   of the system prompt.
+
+**B20-Q3.** A team wants to reduce false positives on a review category without losing
+        the category's genuine detection value entirely, given that developers have
+        started ignoring the category's output due to accumulated distrust.
+A) Permanently remove the entire finding category, since developer trust, once lost,
+   cannot be recovered for that category.
+B) A reasonable interim approach is to temporarily disable the high-false-positive
+   category while supplying concrete accepted-pattern examples and refining its
+   criteria, then re-enable it once precision improves — restoring trust without
+   permanently sacrificing the category's genuine value.
+C) Increase the review frequency for that category, since running it more often will
+   naturally improve its precision over time.
+D) Merge the problematic category into an unrelated, better-performing category so its
+   false positives are diluted by the other category's accuracy.
+
+**B20-Q4.** A team supplies a large set of accepted-pattern examples to reduce false
+        positives, but all the examples happen to come from just one part of the
+        codebase (the API layer), while the false-positive problem is actually
+        occurring across multiple different subsystems with their own distinct
+        accepted conventions.
+A) This is sufficient, since accepted patterns from any one part of the codebase
+   generalize automatically to every other part.
+B) The examples need to be representative of where the false positives are actually
+   occurring — accepted patterns are often subsystem-specific, so examples drawn from
+   only the API layer won't necessarily transfer to reducing false positives in, say,
+   the database layer's own distinct conventions.
+C) The fix is to increase the number of API-layer examples further, since more examples
+   from the same source will eventually generalize regardless of subsystem.
+D) The fix is to remove all examples and rely solely on the model's default judgment
+   across all subsystems.
+
+---
+
+## Answer Key
+
+**Honesty note on option ordering:** while drafting this bank, the correct option landed
+                                 on **B**
+for every single question — a byproduct of how I wrote them, not a deliberate pattern
+for you to
+exploit. Please don't use letter position as a signal; judge each option purely on
+content, as if
+they were shuffled. I'm flagging this openly rather than silently leaving it as an
+exploitable tell.
+
+Each entry below gives the correct answer and the one-line reason it's right —
+cross-check *why*,
+not just *whether*, you matched it.
+
+### Part A
+
+**A1 — Coordinator re-delegation**
+1. **B** — targeted re-delegation to search/analysis, not a generic re-instruction to
+   synthesis.
+2. **A** — repeated rounds must vary the query, or nothing new can surface.
+3. **B** — synthesis can't manufacture facts search never gathered; the gap is upstream.
+4. **B** — "targeted" means specific to the gap, not a repeat of the original broad ask.
+
+**A2 — Content vs. metadata separation**
+1. **A** — separate claim/source fields, not better prose.
+2. **A** — explicit document IDs prevent name-collision conflation.
+3. **B** — more prose doesn't fix a structural attribution gap.
+4. **B** — a dedicated metadata field survives compaction; inline mention doesn't.
+
+**A3 — Structured handoff protocols**
+1. **B** — ID, root cause, amount, recommended action — the standard shape.
+2. **B** — trim to load-bearing fields, don't dump the full reasoning trace.
+3. **B** — a recommendation informs judgment, it doesn't replace it.
+4. **B** — the template's purpose holds even when some fields honestly reflect undone
+   work.
+
+**A4 — Hooks for normalization**
+1. **B** — `PostToolUse` reconciles formats before the model reasons over them.
+2. **B** — correct use of a normalization hook, distinct from a blocking hook.
+3. **B** — this is really an error-metadata (Domain 2) problem, not a normalization one.
+4. **C** — no reliable determinant to normalize from; this needs an upstream
+   schema/contract fix.
+
+**A5 — MCP server scoping**
+1. **B** — personal/experimental → `~/.claude.json`, not shared `.mcp.json`.
+2. **B** — `${ENV_VAR}` expansion keeps the shared file safe to commit.
+3. **B** — project and user scope are additive, not exclusive.
+4. **A** — a missing local env var is the most likely cause given correct project
+   config.
+
+**A6 — MCP resources as content catalogs**
+1. **B** — expose the hierarchy as a resource to cut exploratory calls.
+2. **A** — expose the schema as a resource instead of probing via trial queries.
+3. **B** — resource is the more appropriate model for static, discoverable catalog
+   content.
+4. **B** — a computed, input-varying report is an action; it belongs as a tool.
+
+**A7 — Built-in tool selection**
+1. **B** — `Glob` for filename/path patterns.
+2. **B** — `Grep` for content search across files.
+3. **B** — expand `old_str` for uniqueness, or fall back to `Read`+`Write`.
+4. **B** — `Grep` for entry points, then `Read` to trace, not a blind full-repo read.
+
+**A8 — `@import` / `/memory`**
+1. **A** — `@import` keeps ownership modular without one contested shared file.
+2. **B** — `/memory` diagnoses what's actually loaded in the affected session.
+3. **B** — check the import path/existence and reload via `/memory`.
+4. **B** — `@import` lets each package pull only its relevant standards.
+
+**A9 — Path-scoped rules vs. directory `CLAUDE.md`**
+1. **B** — glob-scoped rule for a file type scattered across many directories.
+2. **B** — both apply additively; they're not mutually exclusive mechanisms.
+3. **B** — when the type is already isolated to one directory, `CLAUDE.md` works just as
+   well.
+4. **B** — `paths: ["src/legacy/**"]` scopes by location, not file type — same effect as
+   directory `CLAUDE.md`.
+
+**A10 — Iterative refinement techniques**
+1. **A** — concrete I/O examples resolve ambiguity prose leaves open.
+2. **B** — the interview pattern surfaces unstated design considerations before
+   implementation.
+3. **A** — test-driven iteration with concrete cases beats further prose refinement.
+4. **A** — independent issues are better handled sequentially; batching is for
+   interacting ones.
+
+**A11 — CI/CD integration**
+1. **A** — `-p`/`--print` for non-interactive mode.
+2. **B** — `--output-format json` + `--json-schema` for machine-parseable output.
+3. **A** — feed prior findings back so re-runs report only new/unaddressed issues.
+4. **B** — an independent instance catches more than a session reviewing its own
+   generation.
+
+**A12 — Retry-with-error-feedback**
+1. **B** — include the specific validation error, not a generic retry prompt.
+2. **B** — recognize when the info is genuinely absent — retry can't fix that.
+3. **B** — the "why," not just a "this was wrong" flag, is the needed signal.
+4. **B** — syntactic validation can't catch semantic implausibility; that's a separate
+   layer.
+
+**A13 — Multi-instance / multi-pass review**
+1. **B** — self-review retains generation reasoning; independent review doesn't.
+2. **B** — per-file passes plus a separate integration pass fix both dilution and
+   contradiction.
+3. **A** — the key variable is absent prior reasoning context, not necessarily other
+   input variation.
+4. **B** — a real coverage tradeoff is being made with only one affordable pass.
+
+**A14 — Escalation triggers**
+1. **B** — an explicit human request is its own trigger, honored without a re-offer.
+2. **B** — a genuine policy gap, not an extrapolated rule — escalate.
+3. **B** — self-reported confidence is a weak, uncalibrated complexity proxy.
+4. **B** — acknowledge-and-offer is right here since there was no explicit request — a
+   different trigger than Q1's.
+
+**A15 — Crash recovery via state manifests**
+1. **B** — export state per agent, load a manifest on resume, skip completed work.
+2. **B** — "absent from manifest" must distinguish not-started from
+   interrupted-mid-flight.
+3. **B** — per-agent structured exports beat raw history for multi-agent resumption.
+4. **B** — findings need stage/input metadata to be correctly re-injected on resume.
+
+**A16 — Provenance and multi-source synthesis**
+1. **B** — preserve and flag both conflicting figures with attribution.
+2. **B** — missing dates can turn a temporal difference into a false "contradiction."
+3. **B** — synthesis must preserve claim-source mappings, not compress them away.
+4. **B** — different content types deserve different renderings, not one uniform format.
+
+### Part B
+
+**B1 — Built-in tools**
+1. **B** — `Glob` for an exact filename pattern.
+2. **B** — `Edit` with a unique anchor is the lightest correct operation.
+3. **B** — expand context for uniqueness, or fall back to `Read`+`Write`.
+4. **B** — `Grep` for entry points before tracing with `Read`.
+
+**B2 — Synthesis agent behaviour**
+1. **B** — preserve and flag the conflict rather than silently picking one.
+2. **B** — check whether inputs were actually dropped from the synthesis prompt.
+3. **B** — synthesis reaching for a search tool signals role/tool-scope drift.
+4. **B** — distinguish well-established from single-sourced findings, don't flatten
+   confidence.
+
+**B3 — Normalization step usage**
+1. **A** — a `PostToolUse` hook reconciling two status vocabularies before reasoning.
+2. **B** — normalizing to the wrong target format (string vs. numeric) only half-fixes
+   it.
+3. **B** — guessing at malformed JSON is fabrication, not normalization — treat as a
+   tool error instead.
+4. **A** — a hook flattening both location shapes into one consistent structure.
+
+**B4 — Coordinator/subagent topology**
+1. **B** — independent papers dispatched in parallel, synthesis after all return.
+2. **B** — a genuinely dependent pipeline can't be parallelized without breaking the
+   dependency.
+3. **A** — redundant parallel dispatch is a legitimate reliability lever when stakes
+   justify the cost.
+4. **A** — the topology (parallel) was right; the decomposition (overlapping scopes) was
+   the actual defect.
+
+**B5 — Multiple tool calls in one turn**
+1. **B** — 8 independent lookups batched into one turn, executed in parallel by the
+   harness.
+2. **B** — one assistant `tool_use` turn, one user turn with all matching `tool_result`
+   blocks.
+3. **A** — two independent lookups can share one turn.
+4. **B** — a dependency failure means the calls were wrongly batched, not that
+   parallelism itself is unsafe.
+
+**B6 — Session resumption / targeted reanalysis**
+1. **B** — explicitly flag the two changed files for targeted re-analysis on resume.
+2. **B** — stale tool results favor a fresh session with an injected summary over raw
+   resumption.
+3. **B** — resumption restores prior state, not knowledge of changes made outside that
+   state.
+4. **B** — inform the resumed session of the specific changed files; no need to restart.
+
+**B7 — Goal-oriented vs. procedural delegation**
+1. **B** — goal-oriented framing lets the subagent adapt to unexpected document
+   structure.
+2. **B** — goal-orientation and coordinator visibility are separable; require both.
+3. **B** — sharpen the goal's criteria rather than reverting to rigid procedure.
+4. **B** — goal-oriented instructions plus structured interim reporting preserve both
+   traits.
+
+**B8 — Subagent role constraint (tools + context + prompt)**
+1. **B** — scope tools/context/prompt to the actual role; excess access is a real risk
+   regardless of wording.
+2. **B** — all three layers matter; prompt wording alone doesn't enforce the boundary.
+3. **B** — restrict actual tool access structurally rather than relying on instruction
+   compliance.
+4. **B** — context scoping matters independently, even with correct tools and prompt.
+
+**B9 — Diagnosing misconfigured subagent spawning**
+1. **B** — check `Task` is actually included in the coordinator's `allowedTools`.
+2. **A** — check the `AgentDefinition` wiring/config for this subagent specifically.
+3. **B** — this is a coordinator-subagent handoff/wiring issue, distinct from a
+   permission or config defect.
+4. **B** — target the question at whether output was actually passed into synthesis's
+   context.
+
+**B10 — Dynamic decomposition adapting to new information**
+1. **B** — adapt the plan based on the deploy finding; that's what open-ended
+   investigation calls for.
+2. **B** — a fixed sequence can't represent a genuinely branching investigation.
+3. **B** — adaptive subtask generation still needs its own separate stopping criteria.
+4. **B** — a fixed, identical-per-account process fits chaining, not per-item dynamic
+   re-planning.
+
+**B11 — State persistence for pipeline resumption**
+1. **B** — persist per-document completion/findings; resume from where it stopped.
+2. **B** — a bare counter can't identify which documents or preserve their findings.
+3. **B** — reprocessing completed work defeats the purpose of persisting state at all.
+4. **B** — the persisted-state structure needs a scheme that prevents one agent's write
+   from clobbering another's.
+
+**B12 — Claude Code review configuration**
+1. **B** — restrict tool access to match the read/analysis nature of the task.
+2. **B** — correct standards and correct tool restriction are both necessary,
+   independently.
+3. **B** — glob-scoped `.claude/rules/` load only for files actually touched in the PR.
+4. **B** — an oversized, mostly-irrelevant standards file dilutes focus even with
+   correct tool restriction.
+
+**B13 — `context: fork` on skills/commands**
+1. **A** — fork isolates verbose exploration so only the summary reaches the main
+   session.
+2. **A** — fork isolates discarded brainstorm branches from the main session's ongoing
+   state.
+3. **B** — don't assume automatic full inheritance; verify what context the fork
+   actually receives.
+4. **B** — a trivial command has nothing worth isolating; forking adds overhead without
+   benefit.
+
+**B14 — MCP server scope selection**
+1. **B** — team-wide, version-controlled → project-scoped `.mcp.json`.
+2. **B** — personal experimentation → `~/.claude.json`, outside shared config.
+3. **B** — `${ENV_VAR}` expansion lets the file be committed safely while tokens stay
+   local.
+4. **B** — both are discovered; confirm there's no ambiguity between the two same-named
+   servers.
+
+**B15 — MCP tool description precision**
+1. **B** — state the actual behavioral difference (live vs. cached) so selection is
+   deliberate.
+2. **B** — length isn't differentiation; state how the outputs actually differ.
+3. **B** — review the system prompt for keyword-level associations, not just the tool
+   descriptions.
+4. **B** — split the overloaded `mode`-based tool into purpose-specific tools.
+
+**B16 — MCP resources reducing exploratory calls**
+1. **B** — static category list → resource, eliminating the near-universal opening call.
+2. **B** — static-for-the-session structure → resource, not a repeated tool call.
+3. **A** — verify the resource is actually being surfaced/used before concluding tools
+   are still needed.
+4. **B** — read-only/no-side-effects is the determining property, not staleness or
+   change frequency.
+
+**B17 — Specialized review passes by concern**
+1. **B** — concern-specific passes with matching few-shot examples improve the
+   underserved category.
+2. **B** — structural separation without concern-specific examples doesn't deliver the
+   benefit.
+3. **B** — separating concerns prevents exactly this kind of cross-concern recall
+   tradeoff.
+4. **B** — a mislabeled example reintroduces the cross-concern interference the split
+   was meant to avoid.
+
+**B18 — JSON schema + `tool_choice`**
+1. **B** — force the specific tool, and design the schema to honestly represent hard
+   cases.
+2. **B** — `"any"` guarantees a tool call while still letting the model pick which
+   schema fits.
+3. **B** — schema validation guarantees shape, not plausibility; semantic checks are a
+   separate layer.
+4. **A** — force the first tool, then switch to `"auto"`/`"any"` for the subsequent
+   choice-dependent step.
+
+**B19 — Output truncation → smaller-scoped API tasks**
+1. **B** — split into smaller-scoped calls rather than relying on ever-larger
+   `max_tokens`.
+2. **A** — fixing truncation and fixing attention dilution are two separate problems.
+3. **B** — splitting solves truncation; a separate integration pass is still needed for
+   cross-file visibility.
+4. **B** — group by logical relationship, not by raw file count, to avoid separating
+   coupled files.
+
+**B20 — Reducing false positives via accepted patterns**
+1. **B** — supply the specific accepted pattern directly, rather than vague conservatism
+   instructions.
+2. **B** — confidence-based filtering alone doesn't reliably improve precision without
+   concrete criteria.
+3. **B** — temporarily disable, refine with real examples, then re-enable — preserves
+   value and trust.
+4. **B** — examples need to be representative of where the false positives actually
+   occur, not one subsystem.
