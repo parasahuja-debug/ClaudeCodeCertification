@@ -1,0 +1,510 @@
+# CCAR-P Gap Bank — Set 1 of 4: Domain 1 (Solution Design & Architecture)
+
+20 questions · 5 gap topics × 4 · built from ccar-p-gap-audit.md. Answer key and rationale
+are at the bottom — attempt cold first. Two items are select-TWO; the rest select ONE.
+
+| Topic | Gap objective | Questions |
+|---|---|---|
+| 1.1 | Translate business problems into Claude-based solutions | Q1, Q2, Q3, Q4 |
+| 1.2 | End-to-end architecture (input → processing → output → feedback) | Q5, Q6, Q7, Q8 |
+| 1.4 | Multi-agent systems & orchestration | Q9, Q10, Q11, Q12 |
+| 1.5 | Decomposition techniques | Q13, Q14, Q15, Q16 |
+| 1.6 | Business value pillars | Q17, Q18, Q19, Q20 |
+
+---
+
+## Questions
+
+### Q1 — Topic 1.1
+
+An insurer wants to “use Claude to generate premium quotes.” Premiums are computed by an
+existing actuarial rating engine from three inputs: driver age band, region, and vehicle
+class. The bottleneck is that customers email free-text descriptions of themselves and their
+vehicles, and agents spend most of their time mapping those emails onto the engine’s inputs.
+The business has ruled out changing the intake channel — customers will keep emailing. Which
+solution shape best translates this problem?
+
+A) Have Claude compute the premium directly from each email, with the full actuarial table
+   in context and worked examples showing correct calculations.
+
+B) Use Claude to extract and normalise the rating inputs from the email, validate them
+   against the engine’s allowed values, and pass them to the existing deterministic rating
+   engine to compute the premium.
+
+C) Replace the email channel with a structured online quote form, removing the need for a
+   language model anywhere in the flow.
+
+D) Have Claude compute the premium and run the rating engine in parallel as a cross-check,
+   escalating any mismatch to an agent.
+
+### Q2 — Topic 1.1
+
+A retail bank’s operations lead asks for “a chatbot so branch staff can ask policy
+questions.” Discovery shows 80% of questions are about fee-waiver eligibility, which is a
+pure function of three fields in core banking. The other 20% are open-ended interpretation
+questions across a 400-page policy manual. Leadership wants both question types handled in
+the first release, and requires that fee-waiver answers be identical for identical accounts
+and never depend on how the question was phrased. Which solution shape fits best?
+
+A) A retrieval-grounded assistant over the full manual that answers every question type
+   uniformly, so staff have a single interface.
+
+B) A retrieval-grounded assistant with a tool that queries core banking, so the model can
+   run the eligibility check whenever a question calls for it.
+
+C) Ship the deterministic eligibility check first and defer the policy assistant until that
+   component has proven its value.
+
+D) A deterministic eligibility check surfaced directly in the staff tool for the fee-waiver
+   case, plus a retrieval-grounded assistant for the open-ended policy questions.
+
+### Q3 — Topic 1.1
+
+A freight company asks for “an AI that reads carrier invoices.” Discovery reveals that the
+only consumer of the output will be an existing reconciliation job, which matches invoice
+lines to shipment records and opens disputes on mismatches. Invoices arrive from 40 carriers
+in widely varied layouts. What should the architect define first?
+
+A) The output contract the reconciliation job needs — fields, types, how missing or
+   ambiguous values are represented, and which conditions route to a human — then design
+   extraction backward from it.
+
+B) A representative corpus of invoices from all 40 carriers, with extraction prompts built
+   to capture every field that appears across them.
+
+C) A model bake-off on raw invoice extraction accuracy, so the model tier is fixed before
+   any pipeline design begins.
+
+D) A prose-summary prototype that analysts can review, building confidence before committing
+   to a structured output format.
+
+### Q4 — Topic 1.1 *(select TWO)*
+
+A hospital group’s goal is to “reduce the time nurses spend on shift handoff.” Which TWO
+discovery findings most strongly indicate that an LLM-based component addresses the core
+problem, rather than a non-LLM fix?
+
+A) Most handoff delay comes from nurses queuing for a single shared workstation at shift
+   change.
+
+B) Handoff information lives mostly in free-text notes written in varied styles, and it must
+   be condensed into a consistent structure.
+
+C) Every handoff item already has a structured EHR field that the previous shift reliably
+   populates.
+
+D) Safety-critical items (pending medications, fall risk) are mentioned inconsistently, in
+   varied phrasing, and scattered across notes.
+
+E) The hospital group has ring-fenced budget for generative AI initiatives this year.
+
+### Q5 — Topic 1.2
+
+A travel-expense assistant extracts merchant, amount, currency, and date from receipt photos
+and posts the result to the finance system. Foreign receipts are sometimes posted at face
+value in the domestic currency (e.g. ¥12,000 posted as $12,000). The schema has `amount:
+number` and a nullable `currency: string`. Traces of the affected cases show `currency`
+correctly extracted as “JPY”, “EUR”, and so on in 97% of them. Where does the fix belong?
+
+A) Add few-shot examples of foreign-currency receipts so the currency field is captured more
+   reliably.
+
+B) Make `currency` a required field so the model can never omit it.
+
+C) Add an output-stage step between extraction and posting that requires a currency,
+   converts non-domestic amounts (or routes null currencies to review), and only then posts.
+
+D) Add an input-stage OCR step that detects currency symbols before the image reaches the
+   model.
+
+### Q6 — Topic 1.2
+
+A customer-feedback pipeline sends raw survey comments to Claude for theme classification,
+then writes themes and a “representative quote” per theme to an analytics warehouse that 200
+staff can access. Legal flags that respondents often include full names and phone numbers in
+their comments. That raw text also sits in the pipeline’s trace logs and in the prompts sent
+for classification. Where should personal data be handled?
+
+A) Instruct the model to exclude personal details when it selects representative quotes.
+
+B) Restrict warehouse access to a small group of cleared analysts.
+
+C) Add PII detection and redaction at the input stage, before text reaches the model, the
+   traces, or any downstream store, so every later stage only ever handles scrubbed text.
+
+D) Add an output filter on the quote field before anything is written to the warehouse.
+
+### Q7 — Topic 1.2
+
+A contract-summary system runs four stages: ingestion → Claude summary → a post-processor
+that truncates summaries to 500 characters for a dashboard card → display. Users report that
+summaries of long contracts “never mention termination terms.” Offline, the full model
+output mentions termination terms in 90% of those contracts, usually near the end of the
+summary. What is the most accurate diagnosis?
+
+A) Lost-in-the-middle: the model is under-attending to termination clauses in long
+   contracts, so retrieve the relevant sections instead.
+
+B) Prompt failure: the prompt should explicitly require termination terms to be mentioned.
+
+C) Model mismatch: long contracts need a larger model.
+
+D) The output-processing stage is discarding the content. Truncation cuts the tail where
+   termination terms appear, so the fix is the output contract (priority items first, or
+   structured fields per item), not the model stage.
+
+### Q8 — Topic 1.2
+
+A claims-letter drafting system produces drafts that adjusters edit before sending. The team
+wants those edits to improve the system over time without risking regressions. Which
+feedback design is most appropriate?
+
+A) Automatically add each final sent letter to the prompt as a few-shot example, so the
+   prompt improves continuously.
+
+B) Add thumbs-up/down buttons to each draft and optimise the prompt for approval rate.
+
+C) Capture the draft-vs-sent diff with categorised edit types, sample it into a labelled
+   evaluation set, and use that set to test prompt changes before deployment.
+
+D) Periodically fine-tune a model on all sent letters.
+
+### Q9 — Topic 1.4
+
+A due-diligence orchestrator dispatches three worker agents (financial, legal, IP), each of
+which reads around 200 documents. Workers return their full exploration transcripts to the
+orchestrator, which writes the final memo. Memo quality has degraded, and the memo sometimes
+cites working hypotheses that a worker explored and later rejected. What is the best fix?
+
+A) Give the orchestrator a larger context budget so it can hold all three transcripts
+   comfortably.
+
+B) Have workers write full transcripts to shared storage and let the orchestrator retrieve
+   the relevant portions on demand.
+
+C) Have the orchestrator summarise each transcript before drafting the memo.
+
+D) Define a structured return contract for workers — conclusions, evidence references,
+   confidence, open questions — so only concluded results cross the boundary, not the
+   exploration trail.
+
+### Q10 — Topic 1.4
+
+A pricing-research system fans out to four agents, each estimating the same competitor’s
+price from different sources (list page, reseller feed, sales-call notes, analyst report).
+Two agents return $49, one $59, and one $45. The aggregator currently averages them and
+reports “$50.50” as fact to the pricing committee. What is the best aggregation design?
+
+A) Report the majority value ($49), since two independent agents agreed.
+
+B) Preserve the disagreement: report each value with its source and date, reconcile using a
+   stated source-precedence or recency rule where one exists, and flag unresolved conflicts
+   rather than reporting a number no source actually gave.
+
+C) Re-run all four agents and average again to reduce noise.
+
+D) Send the four results to a fifth “judge” agent that selects the most plausible value and
+   reports it.
+
+### Q11 — Topic 1.4
+
+An orchestrator dispatches six parallel regional agents to build a global sales report. When
+one region’s data API fails, its agent times out and the whole report fails. Regional
+managers use their own region’s figures for staffing decisions. The business says a report
+covering 5 of 6 regions is useful if the gap is obvious. What is the best design?
+
+A) Bound each worker with a timeout and retry policy, then publish the report with the
+   completed regions and an explicit, prominent gap marker for any region that failed.
+
+B) Retry the failed worker indefinitely until it succeeds, so the report is always complete.
+
+C) Fill the missing region with last quarter’s figures so the report stays complete and
+   comparable.
+
+D) Run the regions sequentially instead of in parallel so a failure is detected earlier.
+
+### Q12 — Topic 1.4
+
+A support system uses an intake agent that talks to the customer, then hands off to a
+billing specialist agent with the message “customer has a billing issue, please help.” The
+specialist asks customers to repeat everything, and satisfaction has dropped. Customers
+often mention several accounts during intake, and the specialist once acted on the wrong
+one. What is the best fix?
+
+A) Pass the full intake conversation transcript to the specialist.
+
+B) Merge intake and billing into a single agent so no handoff is needed.
+
+C) Define a structured handoff payload — verified customer and account identifiers, issue
+   summary, steps already taken, the customer’s stated goal, open questions — validated
+   before the specialist accepts the handoff.
+
+D) Have the specialist open every handoff with a short set of confirming questions.
+
+### Q13 — Topic 1.5
+
+A compliance team must check 1,200 vendor contracts (around 30 pages each) for the presence
+of an indemnity cap and produce a list of contracts missing one. Each contract’s check is
+independent of the others, and results are due in three days. What is the best
+decomposition?
+
+A) Map-reduce: run the same structured per-contract check independently (in parallel or via
+   batch), then aggregate the per-contract results deterministically into the final list.
+
+B) An autonomous agent that works through the contracts, choosing which to examine next
+   based on what it has found so far.
+
+C) Pack as many contracts as fit into each request and ask for the missing-cap list per
+   batch.
+
+D) An orchestrator agent that plans which contracts need checking and assigns them to
+   workers dynamically.
+
+### Q14 — Topic 1.5
+
+A marketing-copy review runs one prompt that performs three independent checks: legal
+claims, brand tone, and accessibility language. Reviews are consistently thorough on legal
+claims but shallow on accessibility. None of the checks depends on another’s result, and
+reviewers wait on the output. What is the best restructuring?
+
+A) Chain the checks sequentially — legal, then tone, then accessibility — passing each
+   step’s output into the next.
+
+B) Keep one prompt but move the accessibility criteria to the top.
+
+C) Keep one prompt and add chain-of-thought reasoning across all three checks.
+
+D) Split into three parallel, focused checks (sectioning), each with its own criteria, and
+   combine the results.
+
+### Q15 — Topic 1.5
+
+A customer-email pipeline was decomposed into nine sequential LLM calls: detect language,
+detect sentiment, detect intent, extract order ID, extract product, draft reply, polish
+tone, check policy, translate. End-to-end latency is 14 seconds, and a wrong early
+classification is carried through every later step. Evaluations show a single structured
+call performs the five detection and extraction steps with equal accuracy. What is the best
+change?
+
+A) Parallelise all nine steps to cut latency.
+
+B) Consolidate steps that don’t need independent verification into fewer calls (e.g., one
+   structured analysis call), and keep separate steps only where an intermediate check or
+   gate adds value.
+
+C) Add a validation call between each of the nine steps to stop errors compounding.
+
+D) Move each of the nine steps to a faster model tier.
+
+### Q16 — Topic 1.5
+
+A team must update every usage of a deprecated internal API across a monorepo of roughly
+4,000 files. The number and location of affected usages aren’t known upfront, and some
+usages require coordinated changes across several files that must land together. What is the
+best decomposition?
+
+A) Fixed parallel sectioning: split the repo into ten equal directory chunks and run one
+   worker per chunk.
+
+B) Orchestrator-worker: an orchestrator first discovers the affected usages and their
+   cross-file dependencies, then dispatches workers per coherent change unit (grouping
+   coupled files), and integrates the results.
+
+C) Map-reduce: one independent call per file decides whether and how to change that file.
+
+D) A single agent session that performs the whole migration sequentially.
+
+### Q17 — Topic 1.6
+
+A telecom deployed Claude on Tier-1 support chat. The project was chartered to fix a
+contractual two-minute first-response SLA, which was being breached on 30% of chats and
+incurring penalties. The success dashboard now leads with “cost per chat down 40%.” The
+sponsor is unconvinced the project is working. What is the core issue?
+
+A) The dashboard measures the cost pillar, but the project was chartered on the
+   performance-SLA pillar. It should lead with SLA attainment (share of chats answered
+   within two minutes, and the breach-rate trend), with cost as a secondary benefit.
+
+B) Cost per chat is persuasive but needs context, so add an industry benchmark comparison.
+
+C) The dashboard is one-dimensional, so report cost alongside CSAT for a balanced picture.
+
+D) Lead with deflection rate (chats resolved without a human), since it captures both cost
+   and speed.
+
+### Q18 — Topic 1.6
+
+An insurer’s small-business underwriting takes five days, driven by manual document review.
+With Claude, it will take four hours. Leadership has already approved launching an
+instant-quote product for micro-businesses, a segment the insurer couldn’t previously serve
+profitably, contingent on this capability. What is the most defensible headline framing for
+the business case?
+
+A) Efficiency: review hours per application fall by over 90%.
+
+B) Cost: fewer underwriter hours mean a lower cost per policy.
+
+C) Transformation: the capability enables a product and market the business couldn’t serve
+   before, so size the case on that opportunity, with the efficiency gain as supporting
+   evidence.
+
+D) Productivity: each underwriter can now handle many more applications.
+
+### Q19 — Topic 1.6 *(select TWO)*
+
+An architect must choose between two first projects. Project X summarises internal meeting
+notes for 3,000 staff, with an estimated 15 minutes saved per person per week and no
+existing way to measure it. Project Y speeds up supplier-invoice exception handling: an
+11-day backlog currently causes $400k a year in late-payment penalties, and exception
+volumes and cycle times are already tracked in the ERP. Which TWO factors most strongly
+favour Y?
+
+A) X’s larger user base means it would generate more total hours saved.
+
+B) Y’s value is tied to an existing measured baseline (cycle time, penalty spend), so its
+   impact can be demonstrated credibly.
+
+C) Y affects fewer users, so change management is simpler.
+
+D) Y would exercise more advanced agentic capabilities.
+
+E) Y’s benefit converts into a hard financial outcome (avoided penalties), while X’s
+   scattered time savings may never be recaptured as realised value.
+
+### Q20 — Topic 1.6
+
+A payments firm’s fraud analysts must decide each case within a 90-second regulatory window.
+A Claude case summary cut average review time from 70 to 40 seconds. However, p99 model
+latency reaches 55 seconds at peak, which pushes some reviews past the window. The business
+wants to announce “43% faster reviews” as the headline result. What is the architect’s best
+response?
+
+A) Report the average improvement, since it reflects the typical case.
+
+B) Report the median instead, to avoid distortion from outliers.
+
+C) Upgrade to a faster model so the average drops further before announcing.
+
+D) The value pillar here is SLA compliance, which is decided by the tail. Measure and report
+   the share of cases decided within 90 seconds, including at peak, and fix the p99 latency
+   before claiming the benefit.
+
+---
+
+## Answer Key & Rationale
+
+**Q1 — B.** The real problem is unstructured-to-structured mapping, which is where the model
+adds value; the calculation is already solved deterministically and should stay that way.
+(A: asks the model to reproduce a formula it can only approximate, for no gain. C: would be
+right if the channel could change — the stem rules that out. D: pays for a model calculation
+whose only job is to be checked by the engine that should have done it in the first place.)
+
+**Q2 — D.** Split the problem by its shape: the deterministic, high-volume case gets a
+deterministic path; only the interpretive case gets the model. (A: forces a lookup through
+retrieval and generation, with no guarantee of identical answers. B: the closest trap — the
+tool itself is deterministic, but whether it gets invoked still depends on the model reading
+the phrasing, which violates the “never depend on phrasing” requirement. C: sound
+first-project logic in general, but contradicts the stated first-release scope.)
+
+**Q3 — A.** When a system has one known downstream consumer, that consumer’s contract
+defines “correct.” Everything upstream is designed to satisfy it. (B: collecting data is
+necessary, but “every field that appears” optimises for the source rather than the consumer.
+C: model selection needs a defined task and metric first, and the contract is what defines
+them. D: a machine consumer can’t use prose, so this prototype validates the wrong output.)
+
+**Q4 — B, D.** Both findings describe unstructured, variably-phrased language that has to be
+condensed and normalised, which is the capability an LLM brings. (A: a real cause, but the
+fix is hardware or scheduling. C: points to a deterministic report over existing structured
+data. E: budget is a funding fact, not evidence of problem–solution fit.)
+
+**Q5 — C.** The traces localise the defect: extraction is right, but the output/posting
+stage ignores a field it was given. Fix the stage that is actually failing. (A and D: both
+improve an extraction step that is already working. B: the Q2-style trap — a required field
+invites fabrication on genuinely ambiguous receipts and still doesn’t make posting honour
+the value.)
+
+**Q6 — C.** Personal data flows through three places — the prompts, the traces, and the
+warehouse — and only a control at the input stage covers all of them. (D: the strongest
+distractor, and correct if the quote field were the only leak, but it leaves the traces and
+prompts exposed. A: a soft instruction on one field. B: shrinks the audience without
+minimising the data.)
+
+**Q7 — D.** The offline evidence clears the model stage: termination terms are produced and
+then removed downstream. Trace the defect to the stage that drops it. (A, B, C: each is a
+real diagnosis category from the exam guide, applied to a stage the evidence has already
+cleared.)
+
+**Q8 — C.** A good feedback loop turns production signal into a controlled evaluation asset,
+so changes are validated rather than absorbed blindly. (A: uncontrolled prompt drift with no
+regression check, and it will eventually bloat the context. B: a coarse signal that doesn’t
+tell you what was wrong. D: learns from everything, including edits that were one-offs, with
+no evaluation gate.)
+
+**Q9 — D.** The worker is the party that knows which hypotheses survived, so the handoff
+contract should carry conclusions, not process. (B: progressive retrieval is a real pattern,
+but the retrieved portions can still include rejected hypotheses. C: the orchestrator
+summarising can’t reliably distinguish a rejected hypothesis from an accepted one. A: more
+room for the same noise.)
+
+**Q10 — B.** Aggregating conflicting evidence means keeping provenance and surfacing
+conflict. The current design invents a figure that exists in no source. (A: majority voting
+assumes the sources are equally reliable, and a stale list page and a fresh sales call
+aren’t. D: a judge is a legitimate pattern, but reporting only its pick hides the conflict
+from the humans making the decision. C: the disagreement is between sources, not sampling
+noise.)
+
+**Q11 — A.** Worker failure should degrade the result gracefully and visibly, not fail it
+entirely or hide the gap. (C: a completeness instinct, but managers would staff on figures
+that look current and aren’t. B: unbounded retries turn one outage into a missing report. D:
+changes when the failure is noticed, not what happens after it.)
+
+**Q12 — C.** A handoff is an interface and should have a contract, and the verified account
+identifier is the field that prevents the costly failure. (A: fixes the repetition, but a
+transcript mentioning several accounts leaves the specialist to guess which one was
+verified. B: reverses the specialisation for one bad interface. D: a safety net that keeps
+the repetition customers are already complaining about.)
+
+**Q13 — A.** The work is independent and identical per unit, with a mechanical merge at the
+end, which is exactly what map-reduce is for. (C: cheaper-looking, but it reintroduces
+long-context recall risk and makes per-contract results unauditable. D: dynamic planning
+adds nothing when every contract needs the same check. B: sequential judgement over work
+that has no dependencies.)
+
+**Q14 — D.** Independent sub-tasks competing for attention in one prompt call for parallel
+sectioning: each check gets full focus, and running them in parallel doesn’t add latency.
+(A: decomposes, but invents a dependency that doesn’t exist and triples wall-clock time. B:
+may shift which check gets shortchanged rather than fixing the competition. C: more
+reasoning within the same shared-attention structure.)
+
+**Q15 — B.** This is over-decomposition: each boundary adds latency and another place for
+errors to compound, with no accuracy gain. The eval result shows the granularity is too
+fine. (A: the drafting and later steps depend on earlier outputs, so they can’t all run in
+parallel. C: treats compounding errors by adding more boundaries. D: every step gets faster,
+but the structure stays wrong.)
+
+**Q16 — B.** Unknown scope plus coupled units means the decomposition itself has to be
+discovered before work is distributed. That is the orchestrator-worker case. (C: correct for
+independent units, as in the contract check, but it breaks here because coupled changes get
+split across isolated calls. A: directory boundaries don’t follow dependency boundaries. D:
+viable for a small change, but at this scale one context degrades over thousands of files.)
+
+**Q17 — A.** Report value against the pillar the project was funded to move. A real
+improvement on a different pillar doesn’t answer the sponsor’s question. (C: balance is a
+reasonable instinct, but neither metric is the chartered one. D: deflection is a common
+support KPI and still doesn’t measure first-response time. B: sharpens the wrong metric.)
+
+**Q18 — C.** When the capability unlocks a new business model rather than speeding up an
+existing one, the headline value is transformation, and sizing only the process saving
+understates it. (A, B, D: all true, and all describe the existing process moving faster,
+which misses what leadership actually approved.)
+
+**Q19 — B, E.** A first project needs value that is both provable (measured baseline) and
+realisable (it converts to an outcome the business actually banks). (A: argues for X, and
+rests on an estimate nobody can verify. C: a real but secondary consideration. D: capability
+showcase is not a value pillar.)
+
+**Q20 — D.** When the business outcome is a hard deadline, averages and medians hide the
+cases that breach it. Measure the pillar at the percentile that decides compliance. (B: the
+usual statistical fix, but ignoring outliers is exactly wrong when outliers are the
+breaches. C: optimises the average, not the tail. A: headlines a number that doesn’t reflect
+the regulatory exposure.)
