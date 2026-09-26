@@ -1,0 +1,489 @@
+# CCAR-P Gap Bank — Set 3 of 4: Domain 3 (Integration)
+
+20 questions · 5 gap topics × 4 · built from ccar-p-gap-audit.md. Answer key at the bottom —
+attempt cold first. Three items are select-TWO; the rest select ONE.
+
+| Topic | Gap objective | Questions |
+|---|---|---|
+| 3.2 | AuthN/AuthZ requirements and security gaps | Q1, Q2, Q3, Q4 |
+| 3.3 | Accuracy-latency trade-offs | Q5, Q6, Q7, Q8 |
+| 3.5 | RAG pipeline: chunking and indexing | Q9, Q10, Q11, Q12 |
+| 3.6 | Retrieval strategies matched to data shape and query pattern | Q13, Q14, Q15, Q16 |
+| 3.7 | Connection protocols (MCP, API/CLI, agent-to-agent) | Q17, Q18, Q19, Q20 |
+
+---
+
+## Questions
+
+### Q1 — Topic 3.2
+
+An internal research agent queries a document-management system through an MCP server. The
+server authenticates the agent with a service credential that can read every repository. An
+intern recently obtained content from the legal team’s restricted repository simply by
+asking the agent. Lawyers use the same agent and legitimately need that repository. What is
+the best fix?
+
+A) Replace the service credential with a narrower one that excludes the restricted
+   repositories.
+
+B) Propagate the end user’s identity (a delegated, per-user token) to the MCP server so each
+   request is authorised against that user’s own permissions.
+
+C) Log every document access and review the log weekly for policy violations.
+
+D) Add an output classifier that redacts content from documents labelled restricted before
+   it is displayed.
+
+### Q2 — Topic 3.2
+
+A team connects its agent to a remote MCP server for a SaaS calendar. The agent only needs
+to read colleagues’ free/busy status. The OAuth consent screen requests full-account scope:
+read/write mail, contacts, calendar, and admin settings. A security review flags the
+integration. What is the right response?
+
+A) Accept the grant, since the agent’s tool list only exposes a free/busy lookup.
+
+B) Accept the grant, but store the token encrypted at rest.
+
+C) Accept the grant, but shorten the token lifetime to one hour.
+
+D) Request only the minimal scope the capability needs (read-only free/busy), and if the
+   server can’t be configured that way, don’t connect it as-is.
+
+### Q3 — Topic 3.2 *(select TWO)*
+
+A team’s MCP server configuration is checked into version control so every developer’s
+Claude Code picks it up. Its env block contains the production database password in plain
+text, and it has been in the repository for four months. Which TWO actions are most
+important?
+
+A) Rotate the exposed credential immediately, since it persists in the repository history.
+
+B) Make the repository private.
+
+C) Move the same password into each developer’s personal (user-level) config instead.
+
+D) Replace the literal value with a runtime reference (an environment variable populated
+   from a secrets manager) so no secret lives in the config file, and point developer
+   configs at non-production credentials.
+
+E) Add the config file to .gitignore going forward.
+
+### Q4 — Topic 3.2
+
+An operations agent has five read-only monitoring tools and one restart_service tool. All
+six are implemented through a generic cloud-CLI wrapper that runs under a single
+account-wide admin credential. In a red-team test, instructions planted in a log line caused
+the agent to call a monitoring tool whose arguments, passed through to the CLI, deleted a
+storage bucket. The team proposes adding human approval to restart_service. What is the best
+fix?
+
+A) Run each tool under a credential scoped to its function — a read-only role for the
+   monitoring tools, a restart-only role for restart_service — so a read tool can’t perform
+   writes whatever arguments it receives.
+
+B) Add human approval to restart_service, as proposed.
+
+C) Split into two agents, one holding the monitoring tools and one holding restart_service.
+
+D) Sanitise log content for instruction-like text before the agent reads it.
+
+### Q5 — Topic 3.3
+
+A voice assistant’s SLA requires 95% of responses within 1.2 seconds. Current latency is 600
+ms at p50 and 900 ms at p95. A new verification pass raises accuracy by 4 points, but its
+latency is long-tailed: it adds about 400 ms at the median and pushes fleet p95 to about 2.4
+s. Nearly all of the accuracy gain comes from two high-stakes intents (payments and address
+changes), which make up about 10% of traffic. What should the architect do?
+
+A) Adopt it: the median stays well within 1.2 seconds.
+
+B) Reject it: any change that breaches the SLA at p95 is off the table.
+
+C) Apply verification only to the two high-stakes intents where the gain is concentrated,
+   then confirm fleet-wide p95 stays within the SLA.
+
+D) Adopt it, and stream the response audio so users hear output sooner.
+
+### Q6 — Topic 3.3
+
+A research assistant runs a query rewrite (300 ms), then searches three independent indexes
+one after another (400 ms each), then re-ranks (500 ms), then generates (1.6 s). The total
+is 3.6 s against a 3.0 s p95 SLA. The team proposes dropping the re-ranker, which would cost
+6 points of accuracy. What is the best change?
+
+A) Query the three indexes in parallel instead of sequentially, saving about 800 ms while
+   keeping the re-ranker.
+
+B) Drop the re-ranker, as proposed.
+
+C) Switch generation to a smaller model to save time.
+
+D) Add a response cache for repeated queries.
+
+### Q7 — Topic 3.3
+
+An internal analyst tool produces long reports, and full generation takes about 25 seconds.
+There is no SLA on total time, and accuracy is the priority. Telemetry shows users abandon
+after about 8 seconds of staring at a blank screen. The team proposes a smaller model that
+finishes in 8 seconds, but evals show it loses 11 points of accuracy. What is the best
+response?
+
+A) Switch to the smaller model, as proposed.
+
+B) Cap max output tokens so reports finish within 8 seconds.
+
+C) Pre-generate reports overnight for the most common requests.
+
+D) Stream output as it’s generated and show progress indicators, keeping the accurate model.
+   The problem is perceived latency, not total time.
+
+### Q8 — Topic 3.3
+
+A fraud-scoring API returns JSON containing a decision, reason codes, and a 150-word
+explanation for human analysts. The checkout service calling it enforces an 800 ms hard
+timeout set by the payment partner. Current p95 is 1.4 s, most of it spent generating the
+explanation. The team proposes enabling streaming. What is the best change?
+
+A) Enable streaming so the response starts arriving sooner.
+
+B) Return only the compact decision and reason codes synchronously, and generate the analyst
+   explanation asynchronously afterwards.
+
+C) Negotiate the timeout up to 1.5 seconds.
+
+D) Switch the whole response to the smallest model.
+
+### Q9 — Topic 3.5
+
+Earnings-call transcripts are chunked by speaker turn. A chunk reading “Revenue in the
+segment grew 12%, driven by enterprise renewals” retrieves poorly for “How did Acme’s cloud
+segment perform in Q3 2025?”. The chunk never names the company, the quarter, or which
+segment “the segment” refers to; that context is established earlier in the call. What is
+the best indexing change?
+
+A) Use larger chunks (whole transcript sections) so more context travels with each passage.
+
+B) Add document-level metadata filters for company and quarter at retrieval time.
+
+C) Before embedding, prepend each chunk with a short generated context stating the company,
+   the quarter, and which segment or topic the passage discusses.
+
+D) Expand user queries with synonyms for “revenue” and “growth.”
+
+### Q10 — Topic 3.5
+
+An enterprise RAG assistant indexes a document platform using a crawler that runs with admin
+access. Answers occasionally quote HR compensation documents to ordinary employees. The
+current mitigation is a post-generation filter that suppresses answers citing documents the
+user can’t access. However, uncited content still shapes answers. What is the best fix?
+
+A) Keep the post-generation filter, and require a citation for every sentence so nothing
+   uncited slips through.
+
+B) Exclude HR documents from the index entirely.
+
+C) Build a separate index for each department.
+
+D) Store each chunk’s source permissions as metadata at index time, keep them synced with
+   the source ACLs, and filter retrieval by the requesting user’s identity before anything
+   reaches the model.
+
+### Q11 — Topic 3.5
+
+To save cost, a team switched to a new embedding model for newly added documents only. The
+existing 800,000 chunks keep their old embeddings, and queries are now embedded with the new
+model. Retrieval of older documents has almost vanished. What explains this, and what is the
+fix?
+
+A) Vectors from different embedding models live in different, incompatible spaces, so
+   similarity between new-model queries and old-model chunks is meaningless. Re-embed the
+   whole corpus, ideally into a parallel index, then cut over.
+
+B) The vector store applies recency weighting that penalises older chunks; disable it.
+
+C) The new model produces vectors of a different magnitude; normalising all vectors fixes
+   it.
+
+D) The similarity threshold is too high for older documents; lower it for them.
+
+### Q12 — Topic 3.5 *(select TWO)*
+
+A support knowledge base mixes two content types: an FAQ of short question–answer pairs, and
+long troubleshooting procedures with numbered steps. Under uniform 400-token chunking,
+retrieval returns step 4 of a procedure without steps 1–3, and FAQ answers arrive separated
+from the questions they answer. Which TWO indexing changes are best?
+
+A) Uniform 256-token chunks with 50% overlap across all content.
+
+B) Chunk the FAQ as exactly one chunk per question–answer pair.
+
+C) Increase top-k to 30 so the missing steps are probably retrieved as well.
+
+D) Strip the step numbering from procedures so each step reads as standalone text.
+
+E) Index procedures in small chunks for matching, but return the full parent procedure
+   whenever any of its chunks matches.
+
+### Q13 — Topic 3.6
+
+A sales assistant answers questions such as “total Q3 revenue for EMEA enterprise accounts
+with contracts over $1M.” The data sits in a 2-million-row warehouse table, and questions
+combine arbitrary filters. The current design embeds each row as text and retrieves the top
+matches. Answers contain wrong totals. What is the best retrieval strategy?
+
+A) Increase top-k to 500 rows so more of the relevant data is summed.
+
+B) Embed pre-computed aggregate summaries (revenue by region and quarter).
+
+C) Have the model generate a SQL query, executed through a read-only, validated query tool
+   against the warehouse, and then explain the result.
+
+D) Move to a larger model with a longer context window so more rows fit.
+
+### Q14 — Topic 3.6
+
+A manufacturer’s engineering assistant receives the question: “Which suppliers of components
+used in our recalled X200 model also supply parts for the Y400?” Single-shot retrieval
+returns passages about the X200 recall itself. Answering needs three linked lookups: the
+X200’s components, those components’ suppliers, and which of those suppliers appear on the
+Y400 supplier list. What is the best strategy?
+
+A) Switch to hybrid keyword and semantic retrieval.
+
+B) Decompose the question into dependent sub-queries — X200 components, then their
+   suppliers, then overlap with the Y400 list — retrieving iteratively using each step’s
+   results.
+
+C) Add a re-ranker so the most relevant passages rise to the top.
+
+D) Increase top-k so passages about components and suppliers are retrieved as well.
+
+### Q15 — Topic 3.6
+
+A retail assistant’s users send conversational follow-ups such as “what about the cheaper
+one?” and “is that quieter?”. Retrieval on the raw follow-up text returns irrelevant
+documents, even though the conversation makes the meaning obvious. What is the best change?
+
+A) Use the entire conversation history as the search query.
+
+B) Ask users to rephrase follow-ups as complete questions.
+
+C) Switch to hybrid retrieval so keywords in follow-ups match more reliably.
+
+D) Before retrieval, rewrite each follow-up into a standalone search query using the
+   conversation context (e.g. “noise level of the Aria S2 dishwasher”).
+
+### Q16 — Topic 3.6
+
+A legal research tool uses hybrid first-stage retrieval. The relevant passage is in the top
+50 candidates 94% of the time, but in the top 5 only 58% of the time. Generation uses the
+top 5. Passages are long (about 2,000 tokens each), and an experiment feeding all 50 to the
+model reduced accuracy because of distracting near-miss passages. Research runs
+asynchronously, so the latency budget is generous. What is the best change?
+
+A) Upgrade the embedding model to improve first-stage retrieval.
+
+B) Feed the top 20 passages to the model as a middle ground.
+
+C) Add a re-ranking stage that scores the top 50 candidates against the query and passes the
+   best 5 to generation.
+
+D) Re-chunk into smaller passages so more of them fit in the top 5.
+
+### Q17 — Topic 3.7
+
+A developer team uses Claude Code in their terminals and wants the agent to open pull
+requests, read issues, and inspect cloud resources. Every developer already has the GitHub
+and cloud CLIs installed and authenticated, and the model knows both CLIs well. Usage is
+interactive and per-developer. A platform engineer proposes building custom MCP servers that
+wrap both CLIs. What is the best recommendation?
+
+A) Let the agent use the existing CLIs through the shell, governed by permission rules that
+   allow specific read and PR operations and deny destructive ones. Reserve MCP servers for
+   capabilities that must be reused across many applications or used where there is no
+   shell.
+
+B) Build the MCP servers so all tool access is consistent and discoverable.
+
+C) Integrate directly with the GitHub and cloud REST APIs as custom tools.
+
+D) Set up an agent-to-agent connection to a dedicated agent that owns GitHub operations.
+
+### Q18 — Topic 3.7
+
+A customer-facing web assistant, multi-tenant and with no shell environment, needs to create
+support tickets in the ticketing system. An engineer proposes running the vendor’s CLI in a
+sandbox container and letting the model compose the shell commands. What is the best
+recommendation?
+
+A) Use the CLI, with a regular-expression allowlist on the commands the model may compose.
+
+B) Expose ticket creation as a narrowly typed tool (via an MCP server or function
+   definition) with a validated schema and tenant-scoped credentials, rather than
+   model-composed shell commands.
+
+C) Use the CLI, with a separate sandbox container per tenant.
+
+D) Connect to the ticketing vendor’s own agent through an agent-to-agent protocol.
+
+### Q19 — Topic 3.7
+
+A finance forecasting agent needs weekly inventory forecasts owned by the supply-chain team,
+which already exposes them through a documented internal API. The need is a pure data read,
+and the supply-chain team has no agent and no need for one. An architect proposes building a
+supply-chain agent and connecting the two over an agent-to-agent protocol “because it
+crosses a team boundary.” What is the best recommendation?
+
+A) Proceed: crossing a team boundary is the defining case for agent-to-agent communication.
+
+B) Give the finance agent direct read access to the supply-chain database.
+
+C) Expose the forecast data as a tool or resource (e.g. an MCP server over the existing API)
+   owned by the supply-chain team. Agent-to-agent is for coordinating with an autonomous
+   counterpart, not for reading data.
+
+D) Have the supply-chain team email a weekly export that the finance agent ingests.
+
+### Q20 — Topic 3.7 *(select TWO)*
+
+A CI pipeline lets an agent run cloud and database CLIs to diagnose failed deployments.
+Today it is unrestricted and uses a senior developer’s admin credentials exported into CI.
+The team wants to keep the CLI approach. Which TWO controls most reduce the risk?
+
+A) Convert every CLI to an MCP server before allowing any agent use.
+
+B) Instruct the agent in CLAUDE.md to avoid destructive commands.
+
+C) Enforce a permission allowlist of specific commands and subcommands, explicitly denying
+   destructive ones.
+
+D) Run the CLIs with credentials scoped to what the CI job needs, not a developer’s admin
+   credentials.
+
+E) Log every command and review the log monthly.
+
+---
+
+## Answer Key & Rationale
+
+**Q1 — B.** This is a confused-deputy problem: the agent acts with its own broad authority
+on behalf of users with narrower authority. Authorisation must evaluate the requesting user.
+(A: closes the leak by also locking out the lawyers who need access, since a single agent
+identity can’t express per-user rights. D: the content has already been retrieved and shaped
+the answer, protection depends on labels being complete, and it would also block lawyers. C:
+detects the problem after the fact instead of preventing it.)
+
+**Q2 — D.** Least privilege applies at the credential level, because the token’s power is
+the real blast radius. The tools the agent happens to expose don’t bound it. (A: the
+strongest trap — a narrow tool surface doesn’t limit what a compromised server, a new tool
+version, or an injection-driven call can do with a full-account token. B and C: sensible
+hygiene that shrinks exposure windows and theft risk, but leaves a token that can still do
+everything.)
+
+**Q3 — A, D.** Treat the secret as compromised and remove secrets from configuration by
+design. Rotation handles the past exposure; runtime secret references and non-production
+credentials prevent the next one. (E: stops future commits but leaves history intact and
+breaks the shared-config benefit. B: narrows the audience, but every developer and every
+clone still holds a production password. C: spreads the same production secret onto every
+laptop.)
+
+**Q4 — A.** The damage came through a “read” tool carrying admin power. Scoping credentials
+per tool makes each tool physically incapable of exceeding its purpose. (B: a real control,
+but on the tool that wasn’t the attack path. C: the monitoring agent still runs every call
+as admin. D: reasonable defence in depth, but it filters surface form, and a boundary can’t
+depend on recognising every injection.)
+
+**Q5 — C.** When a latency cost is paid everywhere but the benefit is concentrated, apply
+the change selectively and re-measure against the SLA’s actual percentile. (B: correctly
+rejects the full rollout but throws away the targeted option. A: measures the median against
+an SLA defined at p95. D: verification has to finish before the answer can be spoken, so
+streaming can’t start ahead of it.)
+
+**Q6 — A.** Before trading accuracy for latency, look for latency the pipeline structure is
+wasting. Independent stages running serially is free budget, and recovering it brings the
+total to about 2.8 s. (B: pays with accuracy for time that could be recovered for nothing.
+C: an unevaluated accuracy risk. D: research queries rarely repeat, so the hit rate is
+unknown and probably low.)
+
+**Q7 — D.** Match the lever to the kind of latency problem. Users abandon because nothing is
+happening, not because 25 seconds breaks a requirement, so a perceived-latency fix preserves
+accuracy. (A and B: spend accuracy or completeness on a constraint that doesn’t exist. C: a
+real tactic for predictable requests, but it helps only the common subset and leaves the
+blank-screen problem everywhere else.)
+
+**Q8 — B.** A machine consumer needs the complete payload inside the deadline, so the fix
+must reduce actual latency. Moving the part the caller doesn’t need off the critical path
+does that. (A: the right lever for a human reader, as in the analyst tool, but useless when
+checkout needs complete JSON. C: the timeout is set by the payment partner. D: an
+unevaluated accuracy risk on the decision itself, when the latency is in the explanation.)
+
+**Q9 — C.** Contextual chunk enrichment restores the situating information that chunking
+removed, so each chunk is retrievable on its own. (B: the closest candidate — it resolves
+company and quarter, but a document-level field can’t say which segment this passage is
+about. A: dilutes the embedding and still may not reach back to where the segment was named.
+D: expands the wrong side, since the query was already specific.)
+
+**Q10 — D.** Access control has to happen before content reaches the model. Once a chunk is
+in context it can influence the answer whether cited or not. (A: tightens a check that runs
+after the exposure has already happened. B: overcorrects and removes content HR staff
+legitimately need. C: coarse, because permissions aren’t shaped like departments and
+cross-team documents break it.)
+
+**Q11 — A.** An index is only coherent if every vector, including every query vector, comes
+from the same model. Mixing models silently breaks similarity. (C: normalisation equalises
+length, not meaning, and spaces don’t align even at the same dimensionality. D: loosens a
+threshold on scores that are noise. B: invents a mechanism the scenario doesn’t support —
+the collapse lines up exactly with the model switch.)
+
+**Q12 — B, E.** Chunk along each content type’s natural unit. A Q&A pair is atomic, and a
+procedure should be matched at fine grain but delivered whole. (A: overlap softens
+boundaries but still cuts through pairs and procedures, just less abruptly. C: hopes the
+right fragments arrive in the right order. D: removes the structure that tells the model a
+step is part of a sequence.)
+
+**Q13 — C.** Aggregations over structured data need an exact query engine. Similarity search
+returns a sample, not a complete filtered set. (B: works when the question space is known in
+advance, but arbitrary filter combinations will miss the pre-computed cuts. A and D: still a
+sample of rows, summed by a language model.)
+
+**Q14 — B.** In a multi-hop question, later lookups depend on the answers to earlier ones,
+and no single query embedding can express that chain. (C: improves ordering within one
+retrieval, but the needed passages aren’t candidates for this query at all. A: better
+matching on the same underspecified query. D: widens the net around the wrong centre.)
+
+**Q15 — D.** Query rewriting resolves references against the conversation so the retriever
+gets a self-contained query. (A: includes the context, but also every stale topic, which
+dilutes the embedding. C: there are no useful keywords in “the cheaper one.” B: pushes the
+system’s job onto users.)
+
+**Q16 — C.** High recall with low precision in the top few means the problem is ranking, not
+retrieval. A second-stage re-ranker fixes exactly that, and the latency budget absorbs it.
+(A: improves the stage that is already finding the passage 94% of the time. B: a hedge that
+reintroduces the distraction the experiment measured. D: changes the units without fixing
+the ordering.)
+
+**Q17 — A.** When the environment has a shell, the CLIs are authenticated, and the model
+already knows them, CLI integration is the cheapest correct option. Governance comes from
+permission rules rather than a wrapping layer. (B: the right call for cross-application
+reuse or shell-less environments, but here it’s maintenance with little benefit. C: rebuilds
+what the CLIs already provide. D: adds an autonomous counterpart where no negotiation or
+coordination is needed.)
+
+**Q18 — B.** This is the inverse of the developer-terminal case. With untrusted end users
+and multiple tenants, free-text command composition is an injection surface. A typed schema
+gives validation and a clean place to attach tenant auth. (A: a regex over shell strings is
+a famously leaky boundary. C: isolates tenants from each other but not the tenant from the
+injection surface. D: no negotiation is involved; this is a single well-defined write.)
+
+**Q19 — C.** The deciding question is whether the other side needs to make decisions or just
+provide data. A data read is a tool or resource need, whatever the org chart looks like. (A:
+over-generalises the cross-organisation case, where each side genuinely keeps its own agent
+and autonomy. B: bypasses the API’s business logic and access control. D: manual, stale, and
+unaudited.)
+
+**Q20 — C, D.** CLI access is governed by bounding what may be invoked and what the
+invocation is allowed to do. The allowlist bounds the commands; scoped credentials cap the
+blast radius if something slips through. (B: advisory, and unattended CI has no one to catch
+it. A: an overcorrection that abandons the chosen approach rather than governing it. E:
+detective, and a month late.)
