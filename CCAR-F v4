@@ -1,0 +1,1173 @@
+# CCAR-F Retake Drill — Weak Objectives Only
+
+
+**Design rules applied to every question**, per your instructions:
+- All four options are genuine, defensible architectural moves — none is a throwaway or obviously
+  wrong distractor. Difficulty comes from precision, not elimination.
+- Options are matched in length and tone so the correct answer isn't identifiable by looking
+  longer, more hedged, or more "complete" than the others.
+- The correct answer is stated concisely — the same register as the distractors, not a giveaway.
+- Full rationale (why the right one is right, and precisely why each distractor falls short) is
+  in the **Answer Key** at the bottom only — not inline, so you can self-test cold.
+
+Work through a section, then check the key. Domain tags reflect the CCAR-F blueprint domain each
+objective maps to.
+
+---
+
+## 0%-Scored Objectives (11 objectives, 31 questions)
+
+### Objective 1 — Session resumption: targeted re-analysis + context injection (0%) — Domain 1
+
+**Q1.** A developer resumes a named multi-hour session after a crash. Three of the twelve files
+the session had already analyzed were modified by a teammate's merge while the session was down.
+The developer wants to resume without repeating the full twelve-file analysis.
+
+A) Resume the session as-is with no additional instruction, since resumption automatically
+   re-validates file state against the working directory before continuing.
+B) Start an entirely new session and paste in a written summary of the prior twelve-file
+   analysis, since a merge during downtime invalidates the value of resuming at all.
+C) Resume the session and explicitly tell the agent which three files changed since the crash,
+   so it can target its re-analysis to just those and treat the other nine as still valid.
+D) Resume the session and instruct the agent to re-read all twelve files from scratch before
+   continuing, since any file could theoretically have drifted from the merge.
+
+**Q2.** A session investigating a bug across many files crashes. On resume, the team debates
+resuming with full prior history versus starting fresh with an injected summary. Two files
+central to the investigation were rewritten by another engineer during the outage; the rest of
+the codebase is untouched.
+
+A) Resume the session, but explicitly flag the two rewritten files for targeted re-analysis,
+   leaving the rest of the restored context intact.
+B) Start a new session with an injected summary of prior findings, since any file-level change
+   during downtime should be treated as invalidating the whole investigation's assumptions.
+C) Start a new session with no injected context at all, relying on the fresh instance to
+   re-derive everything the crashed session had already found.
+D) Resume the session and re-run the entire investigation's tool calls from the beginning, since
+   injected summaries can never substitute for live-verified state.
+
+**Q3.** A resumed session correctly restores its full prior conversation and tool-call history.
+The agent then edits a function whose signature was changed by a teammate after the crash —
+information the resumed session has no way of knowing unless told.
+
+A) This indicates resumption itself failed, since a correctly working resume mechanism should
+   automatically detect any external file changes made during the interruption.
+B) This is resolved by increasing the model's context window, since a larger window would let the
+   agent infer the signature change from surrounding code during editing.
+C) This is resolved by restarting from a completely fresh session with no context at all, since
+   only a blank-slate session can be trusted around any externally-changed file.
+D) This is an inherent limitation of resumption: informing the agent of the specific external
+   change is necessary, since resumption restores prior state, not omniscience about changes made
+   outside it.
+
+### Objective 2 — Selecting the appropriate review architecture: plan mode vs. direct execution vs. multi-phase (0%) — Domain 3
+
+**Q4.** A team is deciding how a review agent should operate across three request types: (a) a
+one-line typo fix in a comment, (b) a cross-cutting rename affecting 40 files with no behavior
+change, and (c) a schema migration touching application and database layers with rollback risk.
+
+A) Use plan mode uniformly for all three, since presenting a plan before any change is always the
+   safer default regardless of how mechanical or reversible the task is.
+B) Use direct execution for (a), a lightweight multi-phase workflow for (b), and plan mode for
+   (c), matching each task's actual risk and ambiguity.
+C) Use a multi-phase workflow uniformly for all three, since staged checkpoints are strictly more
+   thorough than either plan mode or direct execution alone.
+D) Use direct execution uniformly for all three, since plan mode's overhead is never justified
+   once an experienced reviewer approves pull requests downstream.
+
+**Q5.** A refactoring agent migrates a payment-processing module to a new SDK version. There's one
+clear, unambiguous target API, but the change touches 30 files of financial-transaction logic with
+no automated rollback.
+
+A) Direct execution is warranted, since plan mode's value is tied strictly to ambiguity about the
+   desired outcome, which this task doesn't have.
+B) Direct execution is warranted, since the 30-file scope is better handled by increasing model
+   capability than by adding a review step.
+C) Plan mode is warranted here — not because the target is ambiguous, but because of the size and
+   hard-to-reverse risk profile; direct execution should follow once the plan is approved.
+D) A multi-phase workflow with no human checkpoint is warranted, since breaking the migration into
+   phases removes the need for plan mode's approval step entirely.
+
+**Q6.** A team's CI pipeline runs a fully automated review on every pull request, with no human
+present during the run, gating downstream deployment on pass/fail.
+
+A) Direct execution fits here, since plan mode's approval step assumes a human present to review
+   and approve the plan — unavailable in an unattended run — with structured output serving as the
+   gate instead.
+B) Plan mode fits here, since presenting a plan before any review activity is always required for
+   a process that gates deployment, human present or not.
+C) A multi-phase workflow with a plan-mode checkpoint between each phase fits here, since
+   deployment-gating processes always warrant the heaviest available review architecture.
+D) Direct execution fits here, but only because CI pipelines are inherently lower-risk than local
+   development work.
+
+### Objective 3 — State persistence for multi-agent pipeline resumption (0%) — Domain 1
+
+**Q7.** A five-stage document pipeline (extract → classify → validate → enrich → publish)
+processes 10,000 documents. It crashes after stage 3 has completed for 6,200 documents. The team
+wants to resume without re-running completed stages for those 6,200 or losing their results.
+
+A) Persist only a single running counter of total documents fully processed, since knowing how
+   many are done is sufficient to determine where to resume the batch.
+B) Persist the final stage-5 output only for documents that reached it, and re-run stages 1
+   through 5 in full for every document that hadn't yet reached stage 5.
+C) Re-run all five stages for all 10,000 documents on resume, accepting the redundant cost, since
+   partial multi-stage state can't be trusted after an unplanned crash.
+D) Persist each document's per-stage completion status and output to durable storage as each
+   stage finishes, so resume reads that state and continues only the remaining stages per document.
+
+**Q8.** Two agents in a pipeline — extraction and validation — both write completion state to the
+same per-document record with no coordination. A race condition sometimes lets validation's write
+overwrite extraction's findings for a document both touch in quick succession.
+
+A) This is a persisted-state design gap, not an argument against persistence itself — the schema
+   needs structure (separate fields per agent, or ordered/versioned writes) preventing one agent's
+   write from clobbering another's.
+B) This is resolved by having only the validation agent persist state going forward, since
+   validation's output supersedes extraction's regardless of timing.
+C) This is resolved by removing state persistence for this pipeline entirely, since any two-agent
+   write contention proves persistence isn't safe for pipelines of this shape.
+D) This is expected and acceptable — some data loss on concurrent writes is an inherent,
+   unavoidable cost of any multi-agent state-persistence scheme.
+
+**Q9.** A crash-recovery design has each pipeline stage export a state file, and a coordinator load
+a manifest of these files on resume. After a crash, the manifest shows stages 1 and 2 completed
+for a document, but stage 3 is simply absent from the manifest — no entry exists either way.
+
+A) "Absent" always safely means "not started," so the coordinator should restart stage 3 for this
+   document without further checks in every case.
+B) "Absent" indicates a corrupted state file, so the fix is switching from a manifest-based design
+   to relying solely on raw conversation/session history for recovery.
+C) "Absent" is ambiguous between "never started" and "started but interrupted mid-write," and the
+   coordinator needs to distinguish these before restarting, since redoing a stage with side
+   effects mid-flight isn't the same as redoing one that never began.
+D) "Absent" is not actionable information at all, so the pipeline should discard the manifest and
+   reprocess the document from stage 1 regardless of what completed.
+
+### Objective 4 — Multi-agent orchestration pattern selection: coordinator-worker, parallel, sequential (0%) — Domain 1
+
+**Q10.** A research task requires summarizing five independent, unrelated papers with no
+dependency between them, followed by one synthesis step needing all five summaries together.
+
+A) Dispatch the five summarization subagents in parallel within a single coordinator turn, then
+   run synthesis once all five have returned, since the five subtasks are genuinely independent.
+B) Dispatch the five summarization subagents in parallel, and also dispatch synthesis in parallel
+   with them in the same turn, since parallel dispatch broadly applies to every step here.
+C) Use one subagent to read and summarize all five papers within a single invocation, then a
+   second subagent to synthesize, since fewer subagent calls always reduces coordination overhead.
+D) Process the five papers strictly sequentially, one subagent invocation per turn, then
+   synthesize, since sequential processing offers stronger reliability guarantees for any
+   multi-source task.
+
+**Q11.** A due-diligence pipeline needs a legal check, a financial check, and a reputational check
+on the same company — none depending on the others' output — followed by one final report
+combining all three.
+
+A) Coordinator runs the three checks as a strict sequential pipeline, each waiting on the previous
+   one's completion, since findings should always be assembled in a fixed order for auditability.
+B) Coordinator delegates all four steps, including the final report, to a single subagent in one
+   invocation, since consolidating the entire workflow is the most latency-efficient structure.
+C) Coordinator dispatches the three checks in parallel, and does not run a separate report step at
+   all, since a well-instructed reputational subagent can synthesize using its own findings alone.
+D) Coordinator dispatches the three checks in parallel in one turn, then runs the report once all
+   three return, since the checks are mutually independent and only the report depends on them.
+
+**Q12.** A support-ticket system needs step 1 (classify urgency) to complete before step 2 (route
+to the correct specialist queue) can run, since routing logic depends on the classification's
+output.
+
+A) This fits a coordinator-worker pattern with no ordering constraint at all — let both subagents
+   run freely and reconcile any resulting inconsistency afterward.
+B) This fits a sequential pipeline — step 2 genuinely depends on step 1's output, so parallel
+   dispatch of both in the same turn would let step 2 run without the result it requires.
+C) This fits a sequential pipeline, but only because two-step workflows should always default to
+   sequential processing rather than parallel, independent of whether the steps actually depend on
+   each other.
+D) This fits a parallel-execution pattern — dispatching classification and routing in the same
+   turn is always preferable when only two steps are involved.
+
+### Objective 5 — Claude Code review configuration: correct standards + tool restriction + structured output (0%) — Domain 3
+
+**Q13.** A team's automated PR-review agent correctly loads project `CLAUDE.md` conventions and
+produces well-formatted JSON findings, but is also given unrestricted `allowed-tools`, including
+full `Bash` and `Write` access to any file in the repo.
+
+A) This configuration is acceptable as-is, since correctly loaded standards and correctly
+   structured output are the two properties that actually determine review quality.
+B) This configuration is acceptable as-is, since a review task is inherently read-only in effect
+   regardless of which tools are technically reachable by the agent performing it.
+C) The tool access should be restricted to read/analysis-appropriate tools, since an unrestricted
+   toolset creates avoidable risk of unintended modification for a task that doesn't need it.
+D) The tool access should be restricted, but only because unrestricted `Bash` slows down review
+   latency, not because of any risk related to unintended modification.
+
+**Q14.** A review configuration correctly restricts tool access to read-only tools and produces
+clean structured JSON, but is pointed at a stale `CLAUDE.md` copied from a different, unrelated
+project, containing outdated conventions.
+
+A) This configuration is acceptable as-is, since tool restriction is the more consequential of the
+   two properties, and the specific conventions file matters less once destructive access is
+   removed.
+B) Both correctly-scoped tool access and correctly-loaded standards are independently necessary;
+   scoped tools alone don't compensate for reviewing against the wrong conventions.
+C) This configuration is acceptable as-is, provided the stale `CLAUDE.md` is at least syntactically
+   well-formed markdown, since malformed files are the actual failure mode being guarded against.
+D) The fix is to abandon `CLAUDE.md` entirely and rely only on the structured JSON output schema to
+   convey project standards to the review.
+
+**Q15.** A review configuration restricts tools correctly and loads the correct, current
+`CLAUDE.md`, but produces its findings as free-form prose rather than the structured JSON the
+downstream PR-commenting script expects, causing the automation to silently drop most findings.
+
+A) This is acceptable as-is, since correctly-scoped tools and correctly-loaded standards are the
+   two properties that most determine whether a review's findings are substantively accurate.
+B) This is fixed by adding more detail to `CLAUDE.md` describing desired severity levels, since
+   richer conventions naturally produce more consistently structured output.
+C) This is fixed by giving the review agent write access so it can post PR comments directly,
+   bypassing the downstream script's structured-input requirement.
+D) Structured output needs to be explicitly configured (e.g., `--output-format json` with a
+   schema, or a forced tool call) — correct standards and tool scoping don't by themselves
+   guarantee the output shape a downstream consumer requires.
+
+### Objective 6 — Automated test-generation quality: existing tests + fixtures + meaningful-vs-trivial criteria (0%) — Domain 3
+
+**Q16.** An agent asked to "add tests for the new refund-processing function" is given no existing
+test files as context and no fixture conventions. It generates ten new tests, several duplicating
+an existing (unshown) suite, and most only asserting the function doesn't throw an exception.
+
+A) Provide the existing test files as context and explicit criteria distinguishing meaningful
+   assertions from trivial ones, rather than leaving both gaps unaddressed.
+B) Provide only the existing test files as context, since seeing prior coverage is sufficient on
+   its own to also raise the substantive quality of each individual test's assertions.
+C) Increase the number of requested tests from ten to thirty, since a larger volume of tests
+   compensates for both the duplication and the shallow-assertion problems described.
+D) Instruct the agent via a one-line prompt addition to "write more thorough tests," since a
+   stronger directive alone reliably raises assertion quality without supplying either context.
+
+**Q17.** A team supplies an agent with existing test files and clear fixture conventions, but
+never defines what counts as a "meaningful" test versus a trivial one. The agent still generates
+several tests that only check a function returns without error.
+
+A) This is already resolved by the existing test files and fixture conventions supplied, since
+   seeing real prior test structure is functionally equivalent to an explicit standard.
+B) The team needs to add explicit criteria for what constitutes a meaningful behavioral test (e.g.,
+   asserting specific expected outputs for given inputs) versus a trivial one — the other two
+   inputs don't communicate that distinction.
+C) This is resolved by removing fixture conventions from the context entirely, since fixtures are
+   unrelated to whether an individual test's assertions are substantive.
+D) This is resolved by asking the agent to generate fewer tests overall, since a smaller requested
+   count naturally biases the agent toward writing only its most meaningful assertions first.
+
+### Objective 7 — Selecting the correct configuration mechanism: CLAUDE.md, .claude/rules/, Skills, hooks, settings (0%) — Domain 3
+
+**Q18.** A team needs four things configured: (1) a standing coding-style convention that should
+always apply project-wide, (2) a convention that should apply only to files matching
+`**/*.test.ts` regardless of directory, (3) a deterministic, unconditional block on `rm -rf` ever
+executing, and (4) a bundled reference workflow invoked on request for "run our release checklist."
+
+A) (1) `CLAUDE.md`, (2) a `.claude/rules/` file with a glob `paths` pattern, (3) a hook, (4) a
+   Skill — matching each need's scope and enforcement requirement to its purpose-built mechanism.
+B) (1) and (2) should both be `CLAUDE.md` sections, since combining all standing conventions into
+   one file is simpler than splitting by scope; (3) and (4) should both be Skills.
+C) All four should be `.claude/rules/` files with different glob patterns, since sufficiently
+   broad patterns can substitute for `CLAUDE.md`, hooks, and Skills alike.
+D) All four should be hooks, since hooks provide the strongest enforcement guarantee and are
+   therefore the safest default choice regardless of the actual configuration need.
+
+**Q19.** A `.claude/rules/` file is configured with `paths: ["src/legacy/**"]`, and a team
+describes this as "using glob-pattern rules to keep a convention scoped by file type across
+scattered directories."
+
+A) This description is accurate, since any `.claude/rules/` file is, by definition, scoping by
+   file type rather than by directory regardless of the actual glob pattern used.
+B) This description is inaccurate, but only because `.claude/rules/` files can never be used for
+   anything under a `src/` directory specifically.
+C) This description is accurate, but only because the rule also needs an `argument-hint` set to
+   properly scope by file type.
+D) This description is inaccurate for this specific rule — this path scopes by directory location,
+   not file type; the glob-pattern advantage over `CLAUDE.md` shows up for a pattern like
+   `**/*.test.ts` spanning many directories, not one.
+
+**Q20.** A team wants a commit workflow to always require a JIRA ticket ID in every commit
+message, with no exceptions even under time pressure — and separately wants a personal shortcut
+reformatting commit messages to one developer's preferred style, useful across every repo.
+
+A) Both needs call for the same mechanism — a project-scoped Skill — since Skills can express both
+   a strict commit requirement and a personal formatting preference equally well.
+B) The JIRA-ticket requirement calls for a hook that deterministically blocks a commit lacking a
+   matching ID; the personal shortcut calls for a user-scoped command, following the developer
+   across projects.
+C) The JIRA-ticket requirement calls for a project-scoped `CLAUDE.md` instruction stating the
+   rule, since documenting it in project config is sufficient to guarantee "no exceptions."
+D) The personal shortcut calls for a project-scoped command in the repo's `.claude/commands/`,
+   since scoping it to the project ensures it's available exactly where needed most.
+
+### Objective 8 — Subagent output schema design: structured data, prose, and citation metadata (0%) — Domain 1
+
+**Q21.** A document-analysis subagent returns findings as one narrative paragraph mixing two
+claims and their sources inline. Synthesis later can't reliably attribute which number came from
+which source or page.
+
+A) The subagent's output should stay as prose, but should mention each source and page number more
+   frequently, since repetition within prose is sufficient to preserve attribution.
+B) The synthesis step should be responsible for re-deriving correct attribution by re-reading both
+   original source documents, since restructuring the subagent's own output shifts complexity to
+   the wrong layer.
+C) The subagent's output schema should separate each finding into distinct fields — claim text,
+   source identifier, and location — rather than embedding references inline within one paragraph.
+D) The subagent should omit page-level detail entirely and cite only document-level sources, since
+   page numbers add complexity without adding meaningful attribution value.
+
+**Q22.** A subagent designs its own output schema for a task combining (a) structured numerical
+findings, (b) prose narrative explaining nuance, and (c) citation metadata per claim. It returns
+everything as one long, undifferentiated text block.
+
+A) The output schema should render each content type in the form best suited to it — structured
+   fields for numbers, dedicated prose for nuance, separate citation fields per claim — rather than
+   collapsing all three together.
+B) The output schema should drop the prose narrative entirely and return only structured numerical
+   findings with citations, since nuance isn't something a subagent's schema needs to preserve.
+C) The output schema should convert everything, including prose and citations, into numerical
+   fields only, since a fully numerical schema is the most machine-parseable format available.
+D) The output schema is fine as one unstructured text block, since downstream synthesis can always
+   parse whatever natural-language structure the subagent chooses to use.
+
+**Q23.** A subagent's output schema correctly separates structured data, prose, and citation
+fields — but the citation field stores only a document title, with no page, section, or excerpt,
+making it hard for a reviewer to verify a claim quickly.
+
+A) This is already sufficient, since separating citation metadata into its own field, regardless
+   of what it contains, is the property that matters for downstream synthesis.
+B) This is resolved by moving the citation field back into the prose narrative, since embedding a
+   title within the narrative gives equivalent verification ability to a separate field.
+C) This is resolved by removing the citation field entirely and requiring the coordinator to
+   re-locate the correct source and page for every claim during review.
+D) The citation metadata should be extended to include enough locating detail (page/section plus a
+   short excerpt) alongside the title, since a bare title alone doesn't let a reviewer efficiently
+   verify a specific claim.
+
+### Objective 9 — Synthesis agent behavior: preserving source-level uncertainty and contested claims (0%) — Domain 5
+
+**Q24.** A synthesis agent receives two credible but conflicting figures for the same statistic —
+one source says 12%, another says 18% in the same year. It reports only 18%, with no indication a
+second value existed.
+
+A) The synthesis agent correctly resolved the conflict by choosing the more recent-sounding
+   source, since presenting a single confident figure is what a synthesis step is for.
+B) Both figures should be preserved with source attribution, explicitly flagged as contested,
+   rather than the agent silently resolving the conflict by presenting only one as settled fact.
+C) The lower of the two figures should always be reported as the more conservative, and therefore
+   safer, estimate whenever sources conflict.
+D) Neither figure should be reported at all, since any conflict between two credible sources makes
+   the statistic entirely unusable for a final report.
+
+**Q25.** A synthesis agent combines a claim confirmed independently by three sources with a claim
+traceable to a single blog reference. The final report presents both at identical apparent
+confidence, with no distinguishing language.
+
+A) A generic disclaimer should be appended once at the very end of the report noting "some
+   findings may be less certain," rather than distinguishing confidence at the individual level.
+B) The single-sourced claim should be removed from the report entirely, since a synthesis report
+   should include only claims independently confirmed by multiple sources.
+C) The report should distinguish the well-established, multiply-sourced claim from the tentative,
+   single-sourced one, rather than presenting both at the same apparent confidence.
+D) This is acceptable as-is, since a synthesis agent's role is to combine findings into a report,
+   not to evaluate the relative reliability of each finding's underlying sources.
+
+**Q26.** A synthesis agent is given a finding with an explicit publication date and a second, more
+recent finding on the same metric with a different value. It flags this as a "data inconsistency
+requiring investigation" rather than recognizing the metric may simply have changed over time.
+
+A) Requiring and using publication/collection dates lets synthesis distinguish a genuine
+   contradiction from a legitimate temporal difference, which raw values alone can't tell apart.
+B) This is correctly flagged, since any two different values for the same metric should always be
+   treated as a genuine data-quality problem needing investigation.
+C) The fix is to always trust whichever finding has the more recent retrieval timestamp and
+   silently discard the older one, without flagging anything to the reader.
+D) The fix is to remove numerical figures from synthesis output entirely, since any metric that can
+   change over time is inherently unsuitable for a synthesis report.
+
+### Objective 10 — Reducing automated review false positives via persistent project-specific context (0%) — Domain 4
+
+**Q27.** An automated reviewer repeatedly flags a specific null-check pattern as a bug, even though
+it is a deliberate, well-known, team-specific convention. The team's fix attempt: instruct the
+reviewer to "only report issues you are highly confident about."
+
+A) The confidence-based instruction is sufficient on its own, since a reviewer told to report only
+   high-confidence issues will naturally learn which patterns turn out to be false positives.
+B) The false-positive pattern should be handled by permanently disabling the review category
+   responsible for null-check findings, discarding that category's genuine value along with it.
+C) The false-positive pattern should be handled by increasing review frequency, since running the
+   same check more often will eventually average out to fewer false positives per PR.
+D) Supply the specific accepted pattern directly as persistent context so the reviewer recognizes
+   this exact pattern as intentional, rather than relying on a generic confidence instruction.
+
+**Q28.** A team supplies accepted-pattern examples to reduce false positives, but every example is
+drawn from the API layer, while the actual false positives occur in the database layer's own
+distinct, unrelated conventions.
+
+A) The examples need to be representative of where the false positives actually occur; accepted
+   patterns are often subsystem-specific, so API-layer examples won't transfer to the database
+   layer's own conventions.
+B) This is sufficient as-is, since accepted patterns supplied from one part of a codebase
+   generalize automatically to every other part regardless of subsystem.
+C) The fix is to remove all supplied examples and rely solely on the reviewer's own default
+   judgment across every subsystem.
+D) The fix is to supply more API-layer examples, on the theory that a larger volume of the same
+   examples will eventually generalize to the unrelated database-layer conventions.
+
+### Objective 11 — tool_choice to guarantee invocation + sequencing prerequisite data before dependent tools (0%) — Domain 4
+
+**Q29.** An extraction pipeline needs the model to *always* emit a `tool_use` call for
+`extract_invoice_fields` — never plain text — regardless of how unusual the document's formatting
+is, since downstream code expects a `tool_use` block on every call.
+
+A) Set `tool_choice` to `"auto"`, since "auto" maximizes the model's flexibility to choose the best
+   response format for each document's particular formatting.
+B) Increase the model's context window, since a document is more likely to trigger a genuine tool
+   call when more surrounding context is available.
+C) Force the specific tool via `tool_choice`, guaranteeing a `tool_use` block every time, and
+   design the schema so an unparseable document can still be represented honestly (e.g., nullable
+   fields) instead of the model escaping into prose.
+D) Leave `tool_choice` unset and rely on a strongly worded system-prompt instruction insisting the
+   tool always be called, since sufficiently emphatic prose achieves the same guarantee.
+
+**Q30.** A workflow needs `get_customer_account_id` to run and return a valid ID before
+`process_refund` can be called. Currently, the model sometimes attempts `process_refund` with a
+placeholder ID when it hasn't yet called the lookup tool.
+
+A) Sequence the workflow so the prerequisite tool's successful output is required before the
+   dependent tool is deterministically permitted, at the harness/hook level — not left to the
+   model's own reasoning about the dependency.
+B) Merge `get_customer_account_id` and `process_refund` into a single combined tool call, since
+   consolidating both operations removes any need to sequence them at all.
+C) Add a system-prompt instruction telling the model "always call get_customer_account_id before
+   process_refund," relying on the model's own judgment to honor the ordering.
+D) Set `tool_choice` to `"any"` for the entire conversation, since "any" guarantees that some tool
+   is called at every turn, which by itself enforces the required calling order.
+
+**Q31.** A document-classification pipeline has three possible extraction schemas depending on
+document type, which isn't known in advance. The team wants some extraction tool guaranteed to be
+called every time, without pre-committing to one specific schema by name.
+
+A) `tool_choice` forcing one specific named schema tool guarantees the strongest compliance, since
+   forcing a named tool is always the more reliable choice whenever guaranteed invocation matters.
+B) No `tool_choice` configuration is needed here at all; leaving it unset while providing detailed
+   prose descriptions of all three schemas is functionally equivalent to any setting.
+C) `tool_choice: "auto"` is correct here, since "auto" is the most general-purpose option and
+   general-purpose settings are the safest default whenever multiple valid tools exist.
+D) `tool_choice: "any"` guarantees a tool call happens every turn while still letting the model
+   select which of the three schema-specific tools actually fits the document.
+
+---
+
+## 50%-Scored Objectives (6 objectives, 17 questions)
+
+### Objective 12 — Goal-oriented vs. procedural subagent delegation, maintaining coordinator visibility (50%) — Domain 1
+
+**Q32.** A coordinator delegates to a document-analysis subagent with rigid, step-by-step
+instructions ("open page 1, extract data, then page 2, then page 3, in that exact order"). A
+document with an unusual page structure causes the subagent to fail rigidly.
+
+A) The procedural instruction is the correct level of detail here, since more granular,
+   step-locked instructions always reduce a subagent's error rate regardless of document variance.
+B) A goal-oriented instruction ("extract and summarize the key findings, regardless of structure")
+   lets the subagent adapt to unusual structures a fixed sequence cannot accommodate.
+C) The fix is to add even more procedural detail specifying a distinct branch for every possible
+   page-order variation the team can anticipate in advance.
+D) The fix is to remove the subagent entirely and have the coordinator process every document
+   directly, since delegation is the source of the rigidity being observed.
+
+**Q33.** A coordinator gives subagents purely goal-oriented instructions with no reporting
+mechanism at all — subagents return only a final summary, with no visibility into which sources
+were checked or what approach was taken.
+
+A) The fix is switching back to fully procedural, step-by-step instructions, since only procedural
+   delegation is compatible with the coordinator retaining any visibility into subagent behavior.
+B) This is the correct and necessary tradeoff — goal-oriented delegation inherently sacrifices
+   coordinator visibility in exchange for the subagent's adaptability.
+C) Goal-oriented instructions and coordinator visibility are separate concerns — the coordinator
+   can still require subagents to report what they did alongside their goal-oriented output.
+D) The fix is to have the coordinator independently re-derive what each subagent did by repeating
+   the same search/analysis work itself after each subagent returns.
+
+**Q34.** A subagent given the goal-oriented instruction "assess whether this codebase follows
+secure coding practices" interprets "secure" idiosyncratically, flagging minor stylistic choices
+while missing an actual SQL injection vulnerability.
+
+A) The goal itself needs sharper, more operational criteria for what specifically counts as a
+   security issue versus a style issue, rather than abandoning goal-oriented delegation entirely.
+B) This outcome proves goal-oriented instructions are inherently unreliable for any
+   codebase-assessment task, and procedural, step-locked instructions should always be used
+   instead.
+C) The fix is removing all task framing entirely and letting the subagent decide, with no goal
+   statement at all, what to look for in the codebase.
+D) The fix is running the identical subagent invocation five separate times and averaging or
+   voting across the five sets of findings to smooth out the inconsistency.
+
+### Objective 13 — Selecting API processing mode: synchronous vs. Batches (50%) — Domain 4
+
+**Q35.** A team runs a blocking pre-merge CI check and a technical-debt report generated overnight
+for next-morning review. A manager proposes moving both to the Batches API for its discounted
+pricing.
+
+A) Move both workloads to the Batches API, since the discounted pricing benefit applies uniformly
+   regardless of whether a workflow is blocking or latency-tolerant.
+B) Keep both workloads on the synchronous Messages API, since batch-result ordering ambiguity makes
+   the Batches API unsuitable for any workflow with more than a single request.
+C) Move both to the Batches API, but add a fallback that reverts to the synchronous API if the
+   batch hasn't completed within a fixed timeout window.
+D) Move only the overnight report to the Batches API, since its up-to-24-hour, no-guaranteed-SLA
+   turnaround is incompatible with a blocking check developers are actively waiting on.
+
+**Q36.** A company classifies sentiment across 2 million historical tickets as a one-time backfill,
+no strict latency requirement, currently hitting rate limits through the synchronous API one
+ticket at a time.
+
+A) Stay on the synchronous API and reduce the request volume to a smaller representative sample,
+   since 2 million tickets is more volume than a one-time classification actually requires.
+B) Switch this workload to the Batches API, designed for exactly this kind of large-volume,
+   latency-insensitive processing, without needing real-time synchronous responses.
+C) Stay on the synchronous API, since a one-time backfill is a poor fit for asynchronous
+   processing, which is intended only for workloads that recur on a fixed schedule.
+D) Stay on the synchronous API, but distribute the requests across many separate API keys, since
+   multiplying credential-level rate-limit ceilings resolves the throughput bottleneck.
+
+**Q37.** A team submits 500 requests via the Batches API and plans to match each output back to
+its input by assuming results return in the same order they were submitted.
+
+A) This assumption is safe for any batch size, since the Batches API's asynchronous design
+   guarantees deterministic output ordering matching input ordering as a core property.
+B) This assumption is unsafe, but only because 500 requests exceeds some undocumented internal
+   batch-size threshold at which ordering guarantees are known to degrade.
+C) This assumption is unsafe — the Batches API does not guarantee result ordering; each request
+   should carry an explicit `custom_id`, and results should be correlated by that identifier.
+D) This assumption is safe, since the Batches API always preserves submission order for any batch
+   under 1,000 requests specifically.
+
+### Objective 14 — tool_choice for structured compliance when conversational responses would break downstream (50%) — Domain 4
+
+**Q38.** A team needs a categorization tool called with one of three possible category schemas,
+but the correct schema isn't known until the model has read the input — forcing one schema
+upfront isn't viable, yet a plain-text response would break the pipeline.
+
+A) `tool_choice: "any"` guarantees a tool call happens on this turn while still letting the model
+   choose which of the three schema-specific tools actually fits, once it has read the input.
+B) Forcing one specific, named schema by default and having the model correct its own schema
+   choice mid-response is the right approach, since forcing any tool call is strictly better.
+C) `tool_choice: "auto"` is the right choice, since "auto" maximizes flexibility for the model to
+   decide the best response format once it has read the input.
+D) No `tool_choice` configuration is needed if the system prompt clearly explains all three
+   schemas in detail, since sufficiently detailed prose achieves the same structural guarantee.
+
+**Q39.** A support agent has both a conversational path (plain text replies to general questions)
+and a structured path (`log_incident` for anything resembling an outage). The team wants
+outage-shaped messages to trigger `log_incident`, while ordinary questions get a normal reply.
+
+A) Remove the conversational path entirely and force every incoming message through
+   `log_incident`, since consolidating both paths removes ambiguity about which should apply.
+B) Set `tool_choice` to force `log_incident` specifically on every turn, since guaranteeing tool
+   invocation is always the safer choice whenever a structured tool exists in the toolset.
+C) Set `tool_choice: "any"` on every turn, since "any" is the setting specifically designed for
+   exactly this mixed conversational-and-structured use case.
+D) Leave `tool_choice` as `"auto"`, letting the model's own judgment decide per message, since
+   forcing tool invocation on every turn would break the legitimate conversational path.
+
+### Objective 15 — Extraction accuracy: schemas, format normalization, few-shot across varied document formats (50%) — Domain 4
+
+**Q40.** An invoice-extraction tool has `total_amount: number` with no format guidance, and source
+invoices vary between "$1,240.00", "1240.00 USD", and "1,240." The team wants consistent
+extraction without the model fabricating a plausible-looking number on a confusing format.
+
+A) Add a JSON-schema `pattern` constraint requiring one single exact string format for
+   `total_amount`, since a strict pattern constraint alone reliably normalizes any input variation.
+B) Add explicit format-normalization instructions (e.g., strip currency symbols and separators)
+   alongside representative examples spanning the actual format variety observed.
+C) Leave the field as a bare `number` type with no format guidance, since a numeric type is
+   inherently self-normalizing regardless of source formatting.
+D) Add ten additional few-shot examples, all using the single most common format observed, since a
+   larger volume of examples in the dominant format improves consistency across all variants.
+
+**Q41.** A medical-intake schema has a required `onset_date: string (ISO 8601)` field. Patients
+often describe onset vaguely ("a few weeks ago"), and the model fabricates a specific plausible
+date to satisfy the required, strictly-typed field.
+
+A) Keep `onset_date` required and strictly typed, but add a format-normalization instruction
+   converting "a few weeks ago" into an estimated date, since a computed approximation is
+   preferable to an outright fabrication.
+B) Remove the `onset_date` field from the schema entirely, since any field vulnerable to
+   occasional vague phrasing should be excluded rather than accommodated.
+C) Add several few-shot examples of patients who report exact onset dates, since demonstrating the
+   well-formed case more often reduces the rate of fabrication on vague cases.
+D) Give imprecise timing an honest structural home — an optional `onset_approximate: string` field
+   alongside the strict date made optional — rather than forcing every case into a strict format.
+
+**Q42.** An extraction pipeline processes contracts from three countries, each using a different
+date convention. The schema requires ISO 8601 output, and the model silently misconverts day/month
+in ambiguous numeric dates.
+
+A) Add a single generic instruction, "always convert dates to ISO 8601 format," since a clear
+   target-format instruction alone is sufficient regardless of how many source conventions exist.
+B) Add explicit format-normalization instructions describing each source convention and how to
+   disambiguate it, paired with few-shot examples covering each of the three conventions.
+C) Reject and skip any date field written in a purely numeric format, routing it to human review,
+   since numeric-only dates are inherently unrecoverable regardless of added context.
+D) Add few-shot examples covering only the most common convention, since demonstrating it well
+   should generalize to the other two conventions as well.
+
+### Objective 16 — Selecting the correct built-in tool: Grep, Glob, Read, Bash (50%) — Domain 2
+
+**Q43.** An agent needs to find every file across a large repo whose *filename* ends in
+`.migration.sql`, regardless of what's written inside those files.
+
+A) `Read` every file in the repository sequentially and check each one's name against the target
+   suffix as it's opened.
+B) `Bash` with a recursive `cat` piped through a filter, since shell composition is more reliable
+   than either Grep or Glob for locating files by name.
+C) `Grep` for the literal string ".migration.sql" across all file contents, since content search
+   will also surface every filename containing that substring somewhere in the file.
+D) `Glob` with a pattern like `**/*.migration.sql`, since this is a filename/path-pattern match,
+   not a search through file contents.
+
+**Q44.** An agent needs to locate every place in a codebase that calls a specific function,
+`applyDiscount()`, regardless of which files those call sites live in or what those files are
+named.
+
+A) `Grep` for the string `applyDiscount(` across file contents, since this is a search for a
+   pattern *within* files, not a filename or path pattern.
+B) `Glob` for files matching `**/*discount*`, since the function's name suggests a likely naming
+   convention for files that call it.
+C) `Bash` with `find` filtering by file modification date, since recently modified files are the
+   most likely places a function call was added.
+D) `Read` the file where `applyDiscount` is originally defined, and treat that single file as
+   sufficient without searching elsewhere.
+
+**Q45.** An `Edit` call fails because the exact text an agent wants to change appears three times,
+byte-identically, in the same file — once in a comment and twice in actual code.
+
+A) Retry the identical `Edit` call a second time with no changes, since a non-unique-match failure
+   is often transient and frequently succeeds differently on a subsequent attempt.
+B) Use `Bash` with a `sed` command targeting a line number obtained separately, since shell-level
+   line targeting is the standard recommended fallback whenever `Edit` reports a non-unique match.
+C) Expand `old_str` to include enough unique surrounding context to distinguish the intended
+   instance, or, if none exists, fall back to `Read` the full file and `Write` back the corrected
+   content.
+D) Use `Grep` to delete all three matching lines outright, then manually retype the one corrected
+   version back into the file from memory.
+
+### Objective 17 — Integrating MCP servers: correct scope + env-var auth + tool discovery (50%) — Domain 2
+
+**Q46.** A team builds a custom MCP server wrapping their internal deployment system, meant for
+every engineer, version-controlled alongside the project, requiring a per-developer API token that
+must never be committed in plaintext.
+
+A) Configure it in the project's `.mcp.json` (shared, version-controlled), using
+   `${DEPLOY_TOKEN}`-style environment-variable expansion so each developer supplies their own
+   token locally.
+B) Configure it in each developer's personal `~/.claude.json`, copy-pasted by hand onto every
+   machine, since personal scope is correct whenever credentials of any kind are involved.
+C) Configure it in the project's `.mcp.json`, but hardcode one shared token directly in the
+   committed file, since a single shared credential is simpler to manage.
+D) Configure it in the project's `.mcp.json` with the token expressed as a literal, uncommitted
+   local file path reference, since that's the only mechanism `.mcp.json` supports for credentials.
+
+**Q47.** A new team member reports that a documented internal MCP tool from a correctly
+project-scoped `.mcp.json` server simply doesn't appear in their session's available tools, even
+though the file is present and correctly formatted in the repo they cloned.
+
+A) `.mcp.json` inherently only applies to the person who originally authored the file, so every
+   new team member must separately re-register the same server under their own name.
+B) Project-scoped MCP servers require a separate, additional manual installation step beyond
+   cloning the repository, regardless of whether the configuration file itself is correct.
+C) The tool must have been accidentally defined in `~/.claude.json` instead of `.mcp.json`, even
+   though the file the team member confirms is correct is `.mcp.json` specifically.
+D) The most likely explanation, given correctly formatted config, is a missing local environment
+   variable (e.g., a credential referenced via expansion) that isn't set in this developer's
+   environment.
+
+**Q48.** A project has a server correctly defined in project-scoped `.mcp.json`, and a developer
+separately defines a server of the same name in their own personal `~/.claude.json`, pointing at a
+different, personal test instance.
+
+A) The project-scope definition is always silently and completely ignored automatically whenever a
+   personal-scope definition with the same name already exists, with no further action needed.
+B) Both are discovered and available; the developer should confirm this doesn't create ambiguity
+   about which of the two same-named servers a given task actually uses.
+C) This produces a hard configuration error, since MCP does not allow the same server name to be
+   defined in both project and personal scope simultaneously.
+D) The personal-scope definition is always silently and completely ignored automatically whenever a
+   project-scope definition with the same name already exists, with no further action needed.
+
+---
+
+## 60%-Scored Objective (1 objective, 2 questions)
+
+### Objective 18 — Systematic codebase exploration: Grep/Glob/Read building incremental understanding under context limits (60%) — Domain 2
+
+**Q49.** An agent is asked to "trace how authentication flows through this unfamiliar codebase"
+before making any changes. It begins by calling `Read` on every file under `src/`, one at a time,
+in alphabetical order, regardless of relevance.
+
+A) Use `Glob` for `**/*.ts` first, and treat the resulting file list itself as sufficient
+   understanding of the authentication flow, without reading any file's actual contents.
+B) Use `Bash` to count total lines of code in the repository first, since knowing the codebase's
+   overall size should inform which exploration strategy to use next.
+C) Start with `Grep` for authentication-related terms to locate entry points, then `Read` only the
+   specific files that surface, tracing outward from there — building understanding incrementally.
+D) The alphabetical full-tree `Read` approach is the most thorough and therefore correct, since
+   reading every file guarantees no relevant code is missed regardless of context cost.
+
+**Q50.** An agent investigates a bug reported in a "checkout" flow across an unfamiliar codebase,
+with a limited context budget for this exploration.
+
+A) Use `Grep` for checkout-related terms to identify candidate files, `Glob` where useful to
+   confirm related file groupings, and `Read` selectively on the files that surface as relevant.
+B) `Read` the entire repository's file tree into context immediately, since establishing complete
+   upfront familiarity with every file is a prerequisite for diagnosing any bug.
+C) Skip `Grep` and `Glob` entirely and go straight to `Bash` shell scripting to programmatically
+   locate the bug's root cause without using Claude Code's built-in search tools at all.
+D) `Read` only the single file with "checkout" in its name, and stop exploring further regardless
+   of what that file's content reveals about where the actual logic lives.
+
+---
+
+## 67%-Scored Objective (1 objective, 2 questions)
+
+### Objective 19 — Human review routing: confidence scores, document characteristics, field-level ambiguity (67%) — Domain 5
+
+**Q51.** A document-extraction system routes every extraction to human review using pure random
+sampling at a fixed 10% rate, regardless of confidence score, document characteristics, or which
+specific fields were ambiguous.
+
+A) Route based on document characteristics alone, ignoring field-level confidence scores entirely,
+   since document-level characteristics are a more reliable routing signal than per-field scores.
+B) Increase the random sampling rate from 10% to 50%, since a higher fixed random rate resolves the
+   same blindness to confidence and document characteristics that the original rate had.
+C) Random sampling at a fixed rate is the correct routing strategy regardless of confidence or
+   document characteristics, since randomness guarantees an unbiased, representative check.
+D) Route based on the actual signals available — low field-level confidence, harder document
+   types, historically ambiguous fields — concentrating review attention where it's most likely
+   needed.
+
+**Q52.** An extraction pipeline has confidence scores per field, but routes only whole documents
+to review (any document containing at least one low-confidence field goes entirely to a human),
+rather than routing at the level of the specific low-confidence fields.
+
+A) Whole-document routing is the correct granularity regardless of how many fields are actually
+   high-confidence, since a human reviewing a full document always produces a more reliable
+   outcome.
+B) Route at the field level where possible — sending only the specific low-confidence fields with
+   surrounding context — rather than escalating an entire document over a single uncertain field.
+C) The fix is to remove field-level confidence scoring entirely, since if whole-document routing is
+   going to be used regardless, per-field scores serve no purpose.
+D) The fix is to lower the confidence threshold so fewer documents qualify for review, reducing
+   reviewer workload without changing the routing granularity itself.
+
+---
+
+## 33%-Scored Objective (1 objective, 3 questions)
+
+### Objective 20 — Extraction schema design: optional fields, nullable values, enum definitions to avoid fabrication (33%) — Domain 4
+
+**Q53.** A legal-extraction schema defines `termination_clause: string` as required. Contracts
+genuinely lacking a termination clause cause the model to either fabricate plausible boilerplate
+text or fail the extraction outright.
+
+A) Keep the field required, but lower the extraction tool's sampling temperature to reduce the
+   model's tendency to fabricate boilerplate text when the clause is absent.
+B) Remove the field from the schema entirely, since any field that can be legitimately absent from
+   a source document shouldn't be part of the extraction schema at all.
+C) Make `termination_clause` nullable, so `null` is a valid, honest representation of "genuinely
+   not present," reserving required status for fields that must always exist.
+D) Keep the field required, but add several few-shot examples of contracts with no termination
+   clause, since demonstrating the absent case often enough teaches recognition within a still-
+   required field.
+
+**Q54.** A support-ticket triage tool has a `category: string` field with no enum constraint,
+intended to route into one of five known categories. The model has begun inventing ad-hoc category
+strings that don't match any of the five, breaking downstream routing.
+
+A) Constrain `category` with a proper `enum` listing exactly the five valid values (plus an
+   explicit "other" option if needed), rather than a free-form string with descriptive prose.
+B) Keep `category` free-form, but add a much more detailed prose description enumerating the five
+   intended values, since sufficiently detailed prose reliably substitutes for a structural
+   constraint.
+C) Keep `category` free-form, but add downstream validation that silently discards any ticket
+   whose category doesn't match one of the five known values.
+D) Add a `confidence` field alongside the existing free-form `category` string, since pairing a
+   confidence score with an unconstrained field resolves the same ad-hoc-value problem an enum
+   would.
+
+**Q55.** A financial-extraction schema has `annual_income: number` with no lower bound, and the
+model has been observed occasionally producing a negative value for a field that should logically
+never be negative.
+
+A) Make the field nullable, since a nullable field is the correct fix whenever a numeric field has
+   been observed producing an out-of-range value.
+B) Remove type validation from the field entirely, since type constraints are what caused the
+   negative value to pass through in the first place.
+C) Change the field's type from `number` to `integer`, since integers are inherently incapable of
+   representing negative values in a JSON-schema-validated tool call.
+D) Add a semantic/range constraint (e.g., `annual_income >= 0`) as a validation layer beyond the
+   bare type declaration, since a plain numeric type permits negative values that are structurally
+   valid but domain-nonsensical.
+
+---
+
+## Answer Key
+
+### 0%-Scored Objectives
+
+**Q1 — C.** Targeted re-analysis of the specific changed files preserves the value of resumption
+without wasting it on a blanket re-verification. *(A: resumption doesn't auto-detect external
+changes — the false assumption being tested. B: discards valid resumed context — the nine
+untouched files and design reasoning — that a written summary can't fully replace for a scoped
+3-file change. D: over-cautious; wastes exactly the prior work resumption exists to preserve.)*
+
+**Q2 — A.** Flag only the two rewritten files for targeted re-analysis; the rest of the restored
+context stays valid. *(B: overcorrects — "fresh start with injected summary" is right when *most*
+tool results are stale, not for two files out of many. C: throws away real, valid findings for no
+reason tied to the actual (narrow) change. D: full re-run defeats resumption's purpose when a
+targeted flag would do.)*
+
+**Q3 — D.** Resumption restores the agent's own prior state, not knowledge of changes made outside
+it — informing it of the specific external change is what's needed. *(A: mischaracterizes what
+resumption does; expecting automatic external-change detection misunderstands the mechanism. B:
+context window size doesn't grant knowledge of information never transmitted. C: an overcorrection
+that discards an entire valid session for one external change a single note would resolve.)*
+
+**Q4 — B.** Match each task's actual risk/ambiguity: direct execution for the trivial fix, a light
+multi-phase workflow for the mechanical rename, plan mode for the risky migration. *(A: "always
+safer" is refuted by the friction a blanket plan-mode gate adds to the trivial fix. C: treats
+staged checkpoints as universally superior regardless of task shape. D: ignores that the migration
+has genuine ambiguity and hard-to-reverse risk plan mode exists to surface.)*
+
+**Q5 — C.** Plan mode is warranted by size and hard-to-reverse risk, independent of whether the
+target API itself is ambiguous. *(A: conflates "ambiguity about outcome" with the only valid
+trigger for planning — risk/blast-radius is an equally valid, independent trigger. B: reframes a
+process/oversight gap as a capability gap a bigger model doesn't solve. D: a checkpoint-based
+workflow without human approval doesn't provide the alignment step the risk profile calls for.)*
+
+**Q6 — A.** Plan mode's approval step assumes a human present to approve; an unattended CI run has
+none, so direct execution with the review's structured output serving as the gate fits instead.
+*(B: requiring plan mode where no human exists to approve it defeats plan mode's own design. C:
+same mismatch, compounded — "heaviest is safest" isn't calibrated to the actual constraint. D:
+reaches the right conclusion for the wrong reason — CI isn't "inherently lower risk," the
+disqualifier is the absent approver.)*
+
+**Q7 — D.** Persist per-document, per-stage completion status and output, so resume continues only
+the remaining stages per document from wherever it actually left off. *(A: a bare counter can't
+identify *which* documents completed *which* stage. B: still forces full stage 1-4 re-runs for the
+6,200 documents that reached stage 3, discarding exactly the work being preserved. C: defeats the
+entire purpose of persisting state in the first place.)*
+
+**Q8 — A.** This is a state-schema design gap (separate fields per agent, or ordered/versioned
+writes), not an argument against persistence itself. *(B: assumes validation always supersedes
+extraction, which isn't given and would still lose extraction-only fields validation never
+touches. C: an overcorrection discarding needed resumability over a narrower coordination bug. D:
+treats a fixable structural gap as an unavoidable law of any persistence scheme.)*
+
+**Q9 — C.** "Absent" is ambiguous between never-started and interrupted-mid-write; the coordinator
+needs to distinguish these before deciding how to proceed, since a stage with side effects can't be
+blindly restarted the same way an unstarted one can. *(A: assumes absence always safely means
+"not started," exactly the ambiguity the scenario raises. B: misdiagnoses an ambiguous entry as
+corruption. D: throws away stages 1-2's genuinely valid completions for no reason tied to the
+actual ambiguity.)*
+
+**Q10 — A.** The five independent summarization calls belong in one parallel-dispatch turn, with
+synthesis run once all five return. *(B: synthesis genuinely depends on all five summaries, so
+dispatching it in parallel with them means it runs without its required input. C: trades subagent
+isolation and per-paper failure granularity for a marginal reduction in call count. D: asserts a
+general sequential-reliability advantage that doesn't exist for genuinely independent subtasks.)*
+
+**Q11 — D.** Dispatch the three independent checks in parallel, then run the report once all three
+return — only the report genuinely depends on their combined output. *(A: asserts sequential
+ordering is needed "for auditability" when nothing about the checks' actual independence calls for
+it. B: one subagent for all four steps sacrifices isolation and per-check failure visibility. C:
+omits the genuinely-needed synthesis step; a reputational-only subagent can't combine findings it
+was never given.)*
+
+**Q12 — B.** Step 2 genuinely depends on step 1's classification output, so this is a sequential
+pipeline; parallel dispatch would let routing run without the classification it needs. *(A:
+"reconcile afterward" doesn't fix routing running without its required input. C: reaches the same
+structural conclusion via an invalid general rule that would misfire when steps are actually
+independent. D: backwards — parallel dispatch is for independent steps, and this scenario states a
+genuine dependency.)*
+
+**Q13 — C.** Restrict tool access to read/analysis-appropriate tools; a review task doesn't
+structurally need write or shell access, so unrestricted access is avoidable risk. *(A: treats
+tool restriction as a lesser, separable concern rather than the third pillar alongside standards
+and output format. B: assumes intent constrains capability, which is exactly the gap unrestricted
+`allowed-tools` leaves open. D: identifies the right fix for the wrong reason — the risk is
+unintended mutation, not latency.)*
+
+**Q14 — B.** Correctly-scoped tools don't compensate for reviewing against the wrong conventions;
+both need to be right independently. *(A: ranks the two properties against each other when the
+scenario shows they're independent failure modes. C: "syntactically well-formed" addresses a
+different failure than staleness. D: conflates output-format schema with substantive conventions —
+they serve different purposes.)*
+
+**Q15 — D.** Structured output needs its own explicit configuration; correct standards and tool
+scoping don't by themselves guarantee the output shape a downstream consumer requires. *(A: again
+ranks properties against each other while leaving the actual defect unaddressed. B: conflates
+content quality with output format — richer conventions don't make prose parse as JSON. C: trades
+one broken pipeline stage for a much larger one, direct write access, rather than fixing the actual
+gap.)*
+
+**Q16 — A.** Provide both existing tests (avoids duplication) and explicit meaningful-vs-trivial
+criteria (raises assertion depth) — the scenario names two distinct gaps. *(B: existing tests
+address duplication but not assertion depth, addressing only one of the two named gaps. C: more
+volume without duplicate-avoidance or quality criteria plausibly produces more of the same
+problems. D: a stronger-worded instruction doesn't supply the concrete signal that's actually
+missing.)*
+
+**Q17 — B.** Explicit criteria for what counts as meaningful versus trivial is the missing piece;
+neither existing tests nor fixtures communicate that distinction on their own. *(A: the scenario's
+own stated outcome — trivial tests still appearing despite both supplied — directly disproves this
+equivalence. C: removing fixtures addresses a different concern (setup consistency), not assertion
+depth. D: assumes quantity correlates with quality with no basis.)*
+
+**Q18 — A.** Match each need to its purpose-built mechanism: standing project-wide convention →
+`CLAUDE.md`; file-type-scoped convention → `.claude/rules/` glob; deterministic block →
+hook; bundled on-request workflow → Skill. *(B: a single `CLAUDE.md` can't scope by file-type-
+across-directories without effectively becoming a rules file anyway, and Skills require invocation,
+which can't guarantee an unconditional block. C: natural-language rules remain advisory regardless
+of pattern breadth — they don't provide deterministic blocking or bundled on-request content. D:
+hooks intercept specific tool calls; they aren't a vehicle for standing prose conventions or
+bundled reference workflows.)*
+
+**Q19 — D.** This specific path (`src/legacy/**`) scopes by directory location, not file type — the
+glob-pattern advantage over `CLAUDE.md` is for patterns spanning many directories, like
+`**/*.test.ts`, not this one. *(A: asserts `.claude/rules/` always scopes by type "by definition,"
+contradicted by this exact pattern. B: invents an unfounded restriction with no basis. C:
+`argument-hint` is an unrelated Skill/command frontmatter concept.)*
+
+**Q20 — B.** Hook for the deterministic, no-exceptions JIRA requirement; user-scoped command for
+the cross-repo personal preference. *(A: a Skill still requires deliberate invocation — not a fit
+for either the unconditional gate or the personal cross-repo preference. C: `CLAUDE.md` is
+advisory prose, not enforcement — incompatible with "no exceptions, even under pressure." D: puts a
+personal, cross-repo preference into config that only exists in one repo — the opposite of what's
+needed.)*
+
+**Q21 — C.** Separate each finding into distinct fields — claim, source, location — rather than
+inline prose references. *(A: more repetition within the same unstructured format doesn't create
+structural separation; it's still one blob a summarizer can compress and lose. B: pushes a fixable
+upstream design problem onto a downstream step with no privileged access to redo the analysis
+cheaply. D: drops genuinely useful provenance rather than fixing how it's represented.)*
+
+**Q22 — A.** Render each content type in the form suited to it — structured fields, dedicated
+prose, separate citation fields — rather than one undifferentiated block. *(B: discards a
+genuinely useful content type (nuance) rather than giving it a proper place. C: forcing prose and
+citations into numerical fields discards information with no honest numeric representation. D:
+assumes downstream synthesis can reliably parse arbitrary undifferentiated language for three
+structurally different content types — exactly what produced the failure.)*
+
+**Q23 — D.** Extend citation metadata with locating detail (page/section, a short excerpt)
+alongside the title — a bare title lets a reviewer find the document but not efficiently verify
+the specific claim. *(A: correctly separating citation into its own field is necessary but not
+sufficient; granularity is the actual complaint. B: reverses an already-correct fix (structured
+separation) for no benefit. C: removes a genuinely useful field and reassigns its function
+downstream at added cost.)*
+
+**Q24 — B.** Preserve both figures with source attribution, flagged as contested, rather than
+silently presenting one as settled. *(A: this is exactly the collapsing-conflicting-data failure
+being tested — picking a plausible winner isn't resolution, it's discarding real uncertainty. C:
+an arbitrary rule with no basis in which source is actually more reliable. D: over-corrects by
+discarding genuinely useful information rather than presenting it with proper framing.)*
+
+**Q25 — C.** Distinguish the well-established, multiply-sourced claim from the tentative,
+single-sourced one, rather than presenting both identically. *(A: a report-level disclaimer doesn't
+tell the reader *which* specific findings are less certain. B: discards a claim that may still be
+relevant, just less certain — the fix is representing uncertainty, not deleting the finding. D:
+states the opposite of the tested principle; distinguishing confidence is exactly what's called
+for.)*
+
+**Q26 — A.** Publication/collection dates let synthesis tell a genuine temporal change apart from
+an actual contradiction. *(B: treats every differing value as inherently a data-quality problem —
+the exact failure being described. C: silently picking the newer value without flagging anything
+hides the actual finding (the metric changed) from the reader. D: an overcorrection discarding an
+entire useful category of content over a dating-context gap.)*
+
+**Q27 — D.** Supply the specific accepted pattern as persistent context so the reviewer recognizes
+it as intentional — a vague confidence instruction gives no signal about *this* pattern. *(A: "high
+confidence" doesn't reliably distinguish an intentional convention from an actual bug without being
+told which is which. B: discards the category's real detection value as a side effect of removing
+one false positive. C: running an unchanged process more often doesn't add the missing signal about
+which patterns are accepted.)*
+
+**Q28 — A.** Examples need to be representative of where the false positives actually occur;
+accepted patterns are often subsystem-specific. *(B: the scenario's own outcome — false positives
+persisting in the database layer — directly contradicts automatic cross-subsystem generalization.
+C: removes curated context that has real value once it's actually representative. D: more of the
+same non-representative examples doesn't introduce the missing subsystem-specific signal.)*
+
+**Q29 — C.** Force the specific tool via `tool_choice`, and design the schema so hard cases can be
+represented honestly (nullable fields) rather than escaping into prose. *(A: `"auto"` is literally
+the setting that permits the described failure — a plain-text response instead of a tool call. B:
+context window size is unrelated to whether a tool call is structurally compelled. D: a soft prose
+instruction doesn't structurally compel a call the way `tool_choice` does.)*
+
+**Q30 — A.** Sequence at the harness/hook level so the prerequisite's output is required before the
+dependent call is permitted — not left to the model's own reasoning. *(B: merging reintroduces a
+different, worse problem — a single overloaded call conflating a safe lookup with a mutating
+action. C: an advisory ordering instruction depends on consistent model compliance — the unreliable
+mechanism the scenario's own failure demonstrates. D: "any" guarantees *a* call, not a specific
+order between two named tools.)*
+
+**Q31 — D.** `"any"` guarantees a tool call every turn while still letting the model select which
+schema-specific tool fits, once the document type is known. *(A: forcing one named tool only works
+when you already know which fits — here the type is unknown in advance. B: leaving it unset
+reverts to `"auto"`'s permissiveness regardless of prose detail. C: `"auto"` permits skipping the
+tool call entirely, failing the "guarantee some tool is called" requirement.)*
+
+### 50%-Scored Objectives
+
+**Q32 — B.** A goal-oriented instruction lets the subagent adapt to structures a fixed procedural
+sequence can't accommodate. *(A: asserts more granularity is universally better, directly
+contradicted by the scenario's own outcome. C: anticipating every variation in advance doesn't
+scale and still fails on the next unanticipated one — a larger version of the same rigidity. D:
+removes delegation's real benefits over a fixable instruction-style problem.)*
+
+**Q33 — C.** Goal-oriented instructions and coordinator visibility are separable — subagents can
+still be required to report their process alongside adaptive output. *(A: visibility doesn't
+require abandoning adaptability. B: states as a necessary tradeoff something the scenario's own fix
+disproves. D: redundantly repeating each subagent's work defeats the point of delegating it.)*
+
+**Q34 — A.** The goal needs sharper, operational criteria for what counts as a security issue —
+the fix is refining the criteria, not abandoning the goal-oriented approach. *(B: over-generalizes
+one underspecified instance into a blanket claim against the entire approach. C: removes even the
+useful part of the original instruction (the topic itself). D: repeating the same underspecified
+goal and averaging doesn't fix the ambiguity shared across all five runs.)*
+
+**Q35 — D.** Move only the latency-tolerant overnight report to Batches; the blocking pre-merge
+check is incompatible with Batches' lack of a latency SLA. *(A: treats pricing as the only relevant
+factor, ignoring the blocking/non-blocking mismatch. B: the ordering concern is addressable via
+`custom_id`, and mischaracterizes it as ruling out Batches for any multi-request workflow. C: adds
+real complexity to force a mismatch to work rather than routing each workload appropriately.)*
+
+**Q36 — B.** The Batches API is purpose-built for exactly this large-volume, latency-insensitive
+backfill. *(A: changes the deliverable's scope rather than addressing how to process the actual
+needed volume. C: mischaracterizes Batches' fit as being about recurrence rather than latency
+tolerance and volume. D: works around one symptom while leaving the fundamental processing-mode
+mismatch in place.)*
+
+**Q37 — C.** The Batches API doesn't guarantee result ordering; correlate by explicit `custom_id`,
+not position. *(A: states the exact opposite of the real property — no such ordering guarantee
+exists. B: invents an undocumented size threshold with no basis. D: invents a specific size
+threshold that doesn't exist either.)*
+
+**Q38 — A.** `"any"` guarantees a call while letting the model pick the right schema once it has
+read the input, avoiding both premature commitment and plain-text risk. *(B: forcing one named
+schema upfront contradicts the scenario's own stated constraint — the correct schema isn't known in
+advance. C: `"auto"` permits a plain-text response, the exact failure being avoided. D: prose,
+however detailed, doesn't structurally compel a tool call.)*
+
+**Q39 — D.** Leave `tool_choice` as `"auto"` so the model's judgment decides per message, since
+forcing invocation on every turn would break the legitimate conversational path. *(A: removes the
+capability the scenario explicitly wants preserved. B: "always safer" ignores the cost of forcing a
+tool call where none is warranted. C: `"any"` still guarantees a call every turn, equally
+incompatible with preserving genuine conversational replies.)*
+
+**Q40 — B.** Explicit normalization instructions plus examples spanning the actual observed format
+variety. *(A: a pattern constraint governs output shape, not how the model interprets varied
+*input* text before extracting a number. C: a bare numeric type doesn't instruct on stripping
+symbols/separators from varied text. D: examples in only the dominant format don't teach handling
+of the other observed variants.)*
+
+**Q41 — D.** Give imprecise timing its own honest field (`onset_approximate`) rather than forcing
+every case into a strict, required format. *(A: computing an estimate from vague phrasing is still
+fabricating a specific value the patient never stated, just systematically. B: discards a field
+that's genuinely useful whenever patients do report a specific date. C: demonstrating the
+well-formed case more often doesn't give the model a valid way to represent the genuinely vague
+case.)*
+
+**Q42 — B.** Explicit disambiguation guidance per source convention, with examples covering each of
+the three formats specifically. *(A: a target-format instruction doesn't resolve source-side
+disambiguation ambiguity, which is the actual missing piece. C: routes away a large share of
+otherwise-recoverable dates rather than fixing the disambiguation gap. D: examples in one
+convention don't teach disambiguation of the other two genuinely different conventions.)*
+
+**Q43 — D.** `Glob` for a filename/path pattern — this is a name match, not a content search. *(A:
+reading every file's contents just to check its name is far more expensive than a direct pattern
+match. B: reaches for heavier shell composition for a task Glob is specifically built for. C:
+`Grep` searches contents, not filenames — a file could match on name without the string appearing
+in its content, or vice versa.)*
+
+**Q44 — A.** `Grep` for the literal call pattern across contents — this is a search *within* files,
+not by filename. *(B: assumes call sites are named after the function they call, an unreliable
+assumption. C: modification date is unrelated to whether a specific function call appears in a
+file. D: only checks the definition site, not the call sites the question actually asks about.)*
+
+**Q45 — C.** Expand `old_str` for uniqueness, or fall back to `Read` + `Write` if no distinguishing
+context exists. *(A: retrying an identical call against an unchanged file produces the identical
+failure every time. B: reaches for a lower-level shell substitution rather than the built-in
+fallback this ambiguity calls for. D: risks reproducing the content incorrectly from memory and
+discards the tool's ability to work from the file's actual current state.)*
+
+**Q46 — A.** Project-scoped `.mcp.json` with environment-variable expansion for the token, keeping
+the file safely committable while each developer supplies their own credential. *(B: personal scope
+loses the whole team automatically getting the shared server via version control. C: hardcodes a
+real secret into version control, exactly what expansion exists to avoid. D: invents a nonexistent
+constraint — `${VAR}` expansion, not a literal file-path reference, is the actual mechanism.)*
+
+**Q47 — D.** A missing local environment variable is the most likely cause given correctly
+formatted project config. *(A: misstates how project-scoped config works — it's meant to apply to
+anyone with the repo, not gated to its author. B: invents an extra required step with no basis when
+the file is already confirmed correct. C: contradicts the scenario's own stated fact that the file
+is confirmed to be `.mcp.json`.)*
+
+**Q48 — B.** Both are discovered and available; worth confirming there's no ambiguity between the
+two same-named servers. *(A: invents an automatic precedence claim (personal always wins) with no
+support. C: invents a hard-error restriction; project and user scope are additive, not mutually
+exclusive in a way that errors. D: the mirror-image invented precedence claim (project always
+wins), equally unsupported.)*
+
+### 60%-Scored Objective
+
+**Q49 — C.** `Grep` for entry points first, then `Read` selectively, building understanding
+incrementally. *(A: a filename listing carries no information about which files are actually
+relevant or what they contain. B: an unrelated preliminary step that doesn't feed into the actual
+exploration strategy. D: reading every file regardless of relevance is exactly the failure mode —
+blown context budget with no incremental narrowing.)*
+
+**Q50 — A.** `Grep` to identify candidates, `Glob` where useful, `Read` selectively — narrowing
+scope before committing context budget to full reads. *(B: reading the entire tree upfront wastes
+most of a limited budget on files unrelated to the reported flow. C: bypasses the tools built for
+incremental narrowing in favor of ad hoc scripting, with no corresponding benefit. D: stops at one
+filename match regardless of what it reveals, understating that checkout logic likely spans
+multiple files.)*
+
+### 67%-Scored Objective
+
+**Q51 — D.** Route based on the actual signals — confidence, document type, field ambiguity —
+concentrating attention where it's most likely needed. *(A: discards a genuinely useful,
+finer-grained signal in favor of a coarser one, when multiple signals together is the point. B: a
+higher random rate is still blind to every available signal, just applied more often. C: random
+sampling gives unbiased coverage but not risk-concentrated attention, which is what's being tested.)*
+
+**Q52 — B.** Route at the field level where possible, rather than escalating an entire document
+over one uncertain field among many confidently-correct ones. *(A: "always" more reliable ignores
+that whole-document review wastes attention on already-confident fields in the same document. C:
+removes a genuinely valuable signal rather than fixing how it's used. D: reduces volume routed but
+leaves the granularity mismatch itself unfixed.)*
+
+### 33%-Scored Objective
+
+**Q53 — C.** Nullable field lets `null` honestly represent "genuinely not present," reserving
+required status for fields that must always exist. *(A: temperature governs randomness, not the
+schema's structural inability to accept an absent value. B: discards a field that's genuinely
+useful for the large share of contracts that do have a clause. D: a required field structurally
+cannot represent "absent" no matter how many examples demonstrate the absent case.)*
+
+**Q54 — A.** A proper `enum` constrains the field to the five valid values structurally, unlike a
+free-form string with descriptive prose. *(B: no amount of prose detail changes that the field's
+actual type still permits any string. C: silently discarding mismatched tickets hides the failure
+rather than preventing it, and the field can still produce invalid values. D: a confidence score
+alongside an unconstrained field says nothing about whether the value itself is valid.)*
+
+**Q55 — D.** A semantic range constraint (`>= 0`) catches values that are structurally valid but
+domain-nonsensical, beyond what bare type-checking guarantees. *(A: nullable fixes legitimately-
+missing data, a different problem — it doesn't prevent a non-null negative value from passing
+through. B: removing type validation makes the field accept anything, the opposite direction from
+the fix needed. C: `integer` still permits negative whole numbers just as `number` does — it adds
+no lower bound.)*
