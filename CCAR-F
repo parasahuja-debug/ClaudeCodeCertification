@@ -1,490 +1,841 @@
-# CCAR-F Practice Questions — Scenarios 1–4
+# CCAR-F Practice Questions — Scenarios 1–6, Refined to Hardest Difficulty
 
-Source: Claude Certified Architect Foundations Practice Exam (Matthew Purcell)
-Progress: 40/60 questions covered (Scenarios 1–4 complete). Scenarios 5–6 pending.
+Same six scenarios, same 60 questions, same tested concepts — only the options change.
+Rules applied throughout: all options are close, plausible matches to one another; the
+correct answer is concise and length-matched to the distractors; no throwaway options;
+correct-answer letters are rotated across the set; answer key with rationale sits
+separately at the bottom.
 
 ---
 
 ## Scenario 1: Customer Support Resolution Agent
 
-**1.1 (Domain 1)** — Which control flow correctly determines when to keep executing tools and when to present the final response?
-A. Loop until text contains a completion phrase
-B. Inspect `stop_reason`: "tool_use" → execute and loop; "end_turn" → present final response
-C. Run exactly five iterations
-D. Stop as soon as any response contains text content
+**1.1 (Domain 1)** — Which control flow correctly determines when to keep executing
+tools and when to present the final response?
+A) Loop until a response contains no further tool-shaped keywords
+B) Run a fixed number of iterations sized to the ticket's estimated complexity
+C) Inspect `stop_reason`: `"tool_use"` → execute and loop; `"end_turn"` → present the
+   final response
+D) Stop as soon as any response contains any text content alongside a tool call
 
 **1.2 (Domain 1)** — How does the model actually receive tool result data?
-A. MCP server pushes result directly into model memory
-B. Model re-reads tool description, now including result
-C. Nothing required — API executes tools automatically
-D. Your code appends a tool result block (referencing the tool call's ID) to conversation history and resends to Claude
+A) Your code appends a tool-result block, referencing the tool call's ID, to the
+   conversation history and resends it to Claude
+B) The MCP server pushes the result directly into the model's context automatically
+C) The model re-reads the tool's description, which now includes the fresh result
+D) The harness re-invokes the same tool call so the model can observe it firsthand
 
-**1.3 (Domain 1)** — Refund cap of $500 is occasionally bypassed despite prompt instructions. Correct enforcement design?
-A. Hook intercepting outgoing `process_refund` calls, blocking amounts >$500, redirecting to escalation
-B. Move limit to top of system prompt, repeat every turn
-C. Lower temperature
-D. Add limit to tool description
+**1.3 (Domain 1)** — A refund cap of $500 is occasionally bypassed despite prompt
+instructions. Correct enforcement design?
+A) Move the limit to the very top of the system prompt and repeat it every turn
+B) Add the limit as a note inside the `process_refund` tool's own description
+C) Lower the temperature so the model follows the stated limit more consistently
+D) A hook intercepting outgoing `process_refund` calls, blocking amounts over $500 and
+   redirecting them to escalation
 
-**1.4 (Domain 1)** — Customer message contains three concerns (refund, address change, loyalty credit). How to handle?
-A. Resolve only the first, wait for others to be re-raised
-B. Escalate immediately — multi-issue always exceeds capability
-C. Decompose into three items, investigate each (parallel where possible) using shared context, synthesize one unified resolution
-D. Ask customer to resend each separately
+**1.4 (Domain 1)** — A customer's message raises three concerns at once (refund,
+address change, loyalty credit). How should the agent handle it?
+A) Resolve only the first concern and wait for the others to be separately re-raised
+B) Decompose into three items, investigate each — in parallel where possible — using
+   shared context, then synthesize one unified resolution
+C) Escalate the whole message immediately, since a multi-issue request exceeds a
+   single-turn agent's intended scope
+D) Ask the customer to resend each of the three concerns as separate messages
 
-**1.5 (Domain 1)** — Escalation handoff to humans without transcript access. What should it include?
-A. Only customer name
-B. Structured handoff summary: customer ID, root cause analysis, amounts/order numbers, recommended action
-C. A sentiment score
-D. Raw JSON of every tool result
+**1.5 (Domain 1)** — An escalation hands off to a human with no transcript access.
+What should the handoff include?
+A) A structured summary: customer ID, root-cause analysis, amounts/order numbers, and
+   a recommended action
+B) The full raw JSON of every tool result generated during the session
+C) The customer's name plus a computed sentiment score for the conversation
+D) A one-line note that the case was escalated, so the human starts fresh
 
-**1.6 (Domain 2)** — `process_refund` failure returns generic "Operation failed," causing wrong retry behavior. Fix?
-A. Instruct agent to retry exactly twice
-B. Remove failure responses entirely
-C. Have agent apologize on any error
-D. Return structured error metadata: `errorCategory` (transient/validation/business/permission), `isRetryable` boolean, human-readable description
+**1.6 (Domain 2)** — `process_refund` failure returns the generic text "Operation
+failed," causing wrong retry behavior. Fix?
+A) Instruct the agent, via the tool description, to retry failed calls exactly twice
+B) Return structured error metadata — an `errorCategory` (transient/validation/
+   business/permission) plus an `isRetryable` boolean and a human-readable message
+C) Have the agent apologize to the customer whenever any error text appears
+D) Remove failure responses from the tool entirely so retries stop triggering
 
-**1.7 (Domain 2)** — Refund violates returns window policy; tool rejects it. Which error response is correct?
-A. `errorCategory: "business"`, `retriable: false`, customer-friendly explanation
-B. `errorCategory: "transient"` so agent retries later
-C. Empty result marked success
-D. A stack trace
+**1.7 (Domain 2)** — A refund attempt violates the returns-window policy and the tool
+rejects it. Which error response is correct?
+A) `errorCategory: "transient"`, so the agent automatically retries the same call later
+B) An empty result marked as success, so the agent moves on without further action
+C) `errorCategory: "business"`, `retriable: false`, with a customer-friendly explanation
+D) The tool returns a raw stack trace so downstream logging can capture full detail
 
-**1.8 (Domain 2, select TWO)** — Agent confuses `get_customer` and `lookup_order`. Which TWO description changes fix misrouting?
-A. Make descriptions shorter
-B. Document input formats and add example queries **✓**
-C. Prefix with "IMPORTANT:"
-D. Add boundary language differentiating tool use cases **✓**
-E. Rely on tool names alone
+**1.8 (Domain 2, select TWO)** — The agent confuses `get_customer` and
+`lookup_order`. Which TWO description changes fix the misrouting?
+A) Shorten both descriptions so the model reads them fully before deciding
+B) Document each tool's expected input format and add example queries
+C) Prefix both descriptions with the word "IMPORTANT:" for emphasis
+D) Add explicit boundary language differentiating each tool's intended use case
+E) Remove both descriptions and rely on the tool names alone to disambiguate
 
-**1.9 (Domain 5)** — Customer's first message: "I want to speak to a human. Do not try to fix this yourself." Issue looks routine. What should agent do?
-A. Attempt resolution first, escalate only if it fails
-B. Run sentiment analysis, escalate only if frustration exceeds threshold
-C. Escalate immediately — explicit customer request for a human is honored without first attempting investigation
-D. Ask three clarifying questions first
+**1.9 (Domain 5)** — The customer's first message says: "I want to speak to a human.
+Do not try to fix this yourself." The issue itself looks routine. What should the agent do?
+A) Run sentiment analysis first and escalate only if frustration exceeds a threshold
+B) Ask three clarifying questions before deciding whether escalation is warranted
+C) Attempt resolution first, since the issue looks routine, and escalate only if that
+   attempt fails
+D) Escalate immediately — an explicit customer request for a human is honored without
+   first attempting investigation
 
-**1.10 (Domain 5, select TWO)** — Long sessions misquote amounts/order numbers due to lossy summarization; tool results dump 40+ fields into context. Which TWO changes fix this?
-A. Extract transactional facts into a persistent case-facts block outside summarized history **✓**
-B. Increase `max_tokens`
-C. Summarize even more aggressively
-D. Trim each tool result to only fields relevant to the current issue before it enters context **✓**
-E. Ask customer to repeat key numbers
+**1.10 (Domain 5, select TWO)** — Long sessions misquote amounts and order numbers
+because lossy summarization drops detail, and tool results dump 40+ fields into context
+at once. Which TWO changes fix this?
+A) Extract the transactional facts into a persistent case-facts block kept outside the
+   summarized history
+B) Increase `max_tokens` so more of each tool result survives into the response
+C) Summarize more aggressively at each step to keep the conversation compact
+D) Trim each tool result to only the fields relevant to the current issue before it
+   ever enters context
+E) Ask the customer to repeat the key numbers back at the end of the call
 
 ---
 
 ## Scenario 2: Code Generation with Claude Code
 
-**2.1 (Domain 3)** — Personal `/scratch-notes` command shouldn't appear for teammates. Where does it belong?
-A. `.claude/commands/` in the repo
-B. Root `CLAUDE.md` under `# Commands`
-C. `~/.claude/commands/` in home directory — user-scoped, outside version control
-D. `.claude/rules/` with a username path glob
+**2.1 (Domain 3)** — A personal `/scratch-notes` command shouldn't appear for
+teammates. Where does it belong?
+A) `.claude/commands/` inside the repo, so it travels with every clone
+B) Root `CLAUDE.md`, documented under a `# Commands` heading
+C) `~/.claude/commands/` in the home directory — user-scoped, outside version control
+D) `.claude/rules/`, gated behind a username-matched path glob
 
-**2.2 (Domain 3)** — `/analyze-architecture` skill produces thousands of lines polluting the main conversation. Which frontmatter option fixes this?
-A. `argument-hint`
-B. `context: fork` — runs skill in isolated sub-agent context, returns only results
-C. `allowed-tools`
-D. `paths`
+**2.2 (Domain 3)** — `/analyze-architecture` produces thousands of lines that pollute
+the main conversation. Which frontmatter option fixes this?
+A) `allowed-tools`, narrowed to only the tools the analysis actually needs
+B) `argument-hint`, so the skill is invoked with a narrower, pre-scoped target
+C) `context: fork` — runs the skill in an isolated sub-agent context and returns only
+   the results
+D) `paths`, scoping the skill to load only for architecture-relevant directories
 
-**2.3 (Domain 3)** — Guarantee a skill can create files but never run shell commands. How?
-A. State "never run Bash" in instructions
-B. Trust the skill's narrow purpose
-C. Run only in plan mode
-D. Set `allowed-tools` in frontmatter to permit only needed file-write ops, excluding Bash
+**2.3 (Domain 3)** — Guarantee a skill can create files but can never run shell
+commands. How?
+A) State "never run Bash" directly inside the skill's own instructions
+B) Run the skill only while the session is in plan mode
+C) Set `allowed-tools` in frontmatter to permit only the needed file-write operations,
+   excluding Bash
+D) Trust the skill's narrow stated purpose to keep it from reaching for Bash
 
-**2.4 (Domain 3)** — Team standards live in your personal `~/.claude/CLAUDE.md`; teammate's sessions ignore them. Fix and verification?
-A. Move standards into project-level `CLAUDE.md` (checked into repo); use `/memory` to verify which memory files a session loaded
-B. Email your `~/.claude/CLAUDE.md` to the teammate
-C. Have teammate reinstall Claude Code
-D. Paste standards at the start of each session
+**2.4 (Domain 3)** — Team standards live in your personal `~/.claude/CLAUDE.md`;
+teammates' sessions ignore them. Fix and verification?
+A) Paste the standards at the start of every session as a standing habit
+B) Move the standards into the project-level `CLAUDE.md`, checked into the repo; use
+   `/memory` to verify which memory files a given session actually loaded
+C) Have each teammate copy your personal `~/.claude/CLAUDE.md` file onto their own machine
+D) Email the contents of your personal file to the team as reference documentation
 
-**2.5 (Domain 3)** — Project `CLAUDE.md` grown to 2,000 lines, loaded regardless of task. Recommended reorganization?
-A. Delete the file
-B. Move everything to user-level `CLAUDE.md`
-C. Split into focused topic files in `.claude/rules/` (testing.md, api-conventions.md, deployment.md) with path-scoped frontmatter
-D. Convert to a single manual slash command
+**2.5 (Domain 3)** — Project `CLAUDE.md` has grown to 2,000 lines and loads in full
+regardless of the task at hand. Recommended reorganization?
+A) Move the entire file's contents up to a user-level `CLAUDE.md` instead
+B) Convert the whole file into a single manual slash command invoked on demand
+C) Split it into focused topic files under `.claude/rules/` (testing.md,
+   api-conventions.md, deployment.md) with path-scoped frontmatter
+D) Delete the sections that seem least frequently relevant to recent tasks
 
-**2.6 (Domain 1)** — Continue exactly where yesterday's named session `leak-hunt` left off. What do you run?
-A. `claude --continue-all`
-B. `claude --resume leak-hunt`
-C. `claude -p "continue the leak investigation"`
-D. New session, paste yesterday's scrollback
+**2.6 (Domain 1)** — Continue exactly where yesterday's named session `leak-hunt` left
+off. What do you run?
+A) A new session, with yesterday's scrollback pasted in as the opening message
+B) `claude --resume leak-hunt`
+C) `claude -p "continue the leak investigation"`, letting the harness infer the session
+D) `claude --continue-all`, to restore every recent session's state at once
 
-**2.7 (Domain 1)** — Compare two competing refactoring strategies independently from the same analysis baseline, without cross-contamination. Which capability?
-A. Same session, ask Claude to "forget" the first strategy
-B. Two brand-new sessions, redo analysis in each
-C. `/compact` between strategies
-D. `fork_session` — independent branches from the shared baseline
+**2.7 (Domain 1)** — Compare two competing refactoring strategies independently from
+the same analysis baseline, with no cross-contamination between them. Which capability?
+A) `/compact` run between exploring the first strategy and the second
+B) The same session, asking Claude to "forget" the first strategy before the second
+C) Two brand-new sessions, each redoing the baseline analysis from scratch
+D) `fork_session` — independent branches from the shared baseline
 
-**2.8 (Domain 1)** — Resuming last week's session, but merged changes mean most tool results describe code that no longer exists. Reliable approach?
-A. New session seeded with a structured summary of prior conclusions — stale tool results make resumption unreliable
-B. Resume as-is; Claude auto-detects file changes
-C. Resume and increase `max_tokens`
-D. Never resume any session
+**2.8 (Domain 1)** — Resuming last week's session, but merged changes mean most tool
+results now describe code that no longer exists. Reliable approach?
+A) Resume as-is and increase `max_tokens`, since more budget compensates for drift
+B) Never resume any session once the underlying code has changed at all
+C) A new session, seeded with a structured summary of prior conclusions — stale tool
+   results make raw resumption unreliable here
+D) Resume as-is; Claude auto-detects which files changed since the session paused
 
-**2.9 (Domain 5)** — Context filling with verbose output mid-session; not ready to end session. Which built-in command helps?
-A. `/memory`
-B. `/fork`
-C. `/compact` — compacts conversation so session can continue productively
-D. `/rules`
+**2.9 (Domain 5)** — Context is filling with verbose output mid-session, and the
+session isn't ready to end. Which built-in command helps?
+A) `/rules`, to reload only the currently-relevant configuration files
+B) `/fork`, to branch off a fresh context from this point forward
+C) `/compact` — compacts the conversation so the session can continue productively
+D) `/memory`, to inspect which memory files are contributing to context size
 
-**2.10 (Domain 5, select TWO)** — Agent starts answering from "typical patterns" instead of specifics discovered earlier in long sessions. Which TWO practices counteract this?
-A. Switch to larger context window, keep accumulating
-B. Maintain a scratchpad file recording key findings; agent references it for later questions **✓**
-C. Repeat important questions twice
-D. Ask the agent to be more specific
-E. Delegate verbose investigation to subagents that return summaries, keeping main session for coordination **✓**
+**2.10 (Domain 5, select TWO)** — The agent starts answering from "typical patterns"
+instead of specifics discovered earlier in long sessions. Which TWO practices
+counteract this?
+A) Switch to a larger context window and keep accumulating without other changes
+B) Maintain a scratchpad file recording key findings; have the agent reference it
+   for later questions
+C) Ask the agent to be more specific whenever a generic-sounding answer appears
+D) Repeat important questions a second time to reinforce them
+E) Delegate verbose investigation to subagents that return summaries, keeping the main
+   session focused on coordination
 
 ---
 
 ## Scenario 3: Multi-Agent Research System
 
-**3.1 (Domain 1)** — Coordinator's system prompt says delegate, but it never spawns subagents; attempts all research itself. Cause?
-A. Model tier too small
-B. Subagents must be started manually
-C. Prompt needs "delegate" capitalized
-D. Coordinator's `allowedTools` doesn't include "Task" — the mechanism for spawning subagents
+**3.1 (Domain 1)** — The coordinator's system prompt says to delegate, but it never
+spawns subagents and attempts all research itself. Cause?
+A) The model tier in use is too small to reliably decide when to delegate
+B) Subagents in this framework must always be started manually by a human operator
+C) Coordinator's `allowedTools` doesn't include `Task` — the mechanism for spawning
+   subagents
+D) The prompt needs the word "delegate" written in capital letters for emphasis
 
-**3.2 (Domain 1)** — Web search subagent gathers great findings; synthesis subagent's reports are generic, referencing nothing. Coordinator just says "Synthesize the research findings." What's wrong?
-A. Synthesis agent needs extended thinking
-B. Subagents don't inherit coordinator's conversation history — coordinator must include actual findings directly in the synthesis prompt
-C. Synthesis agent needs its own web search tools
-D. Prompt needs "please"
+**3.2 (Domain 1)** — A web-search subagent gathers strong findings; the synthesis
+subagent's reports are generic and reference nothing specific. The coordinator's
+delegation prompt just says "Synthesize the research findings." What's wrong?
+A) The synthesis agent needs its own web-search tools to verify claims independently
+B) Subagents don't inherit the coordinator's conversation history — the coordinator
+   must include the actual findings directly in the synthesis delegation prompt
+C) The synthesis agent needs extended thinking enabled to reason more thoroughly
+D) The delegation prompt needs softer, more polite phrasing to engage the model fully
 
-**3.3 (Domain 1)** — Coordinator invokes search subagent, waits, then invokes analysis subagent — doubling latency despite independence. How to parallelize?
-A. Emit both Task tool calls in a single response, spawning subagents in parallel
-B. Ask each subagent to work faster
-C. Run two copies of the whole system
-D. Parallelism is impossible for subagents
+**3.3 (Domain 1)** — The coordinator invokes a search subagent, waits, then invokes an
+analysis subagent — doubling latency despite the two being independent. How to
+parallelize?
+A) Run two entirely separate copies of the whole multi-agent system side by side
+B) Ask each subagent, via its prompt, to complete its work faster
+C) Emit both `Task` calls within a single response, spawning both subagents in parallel
+D) Accept that subagent parallelism isn't achievable within one coordinator turn
 
-**3.4 (Domain 1)** — Coordinator gives subagents rigid step-by-step scripts; they fail on topics that don't fit. Better design?
-A. Make procedures longer
-B. Remove all instructions
-C. Specify research goals and quality criteria; let subagent adapt its approach
-D. Have subagents ask a human whenever the script fails
+**3.4 (Domain 1)** — The coordinator gives subagents rigid, step-by-step scripts, and
+they fail whenever a topic doesn't fit the script. Better design?
+A) Have subagents ask a human operator whenever the script's next step doesn't apply
+B) Specify research goals and quality criteria instead, letting each subagent adapt
+   its own approach to the topic
+C) Make the step-by-step procedures longer, covering more edge cases explicitly
+D) Remove all instructions from the subagent prompts entirely
 
-**3.5 (Domain 1)** — Reports are coherent but shallow on some subtopics. Want self-detection/repair of coverage gaps. Which pattern?
-A. Accept first synthesis as final
-B. Iterative refinement loop: coordinator evaluates synthesis for gaps, re-delegates targeted queries, re-invokes synthesis until sufficient
-C. Ask report generator to pad thin sections with general knowledge
-D. Always run every subagent exactly twice
+**3.5 (Domain 1)** — Reports come back coherent but shallow on certain subtopics, and
+the team wants self-detection and repair of coverage gaps. Which pattern?
+A) Always run every subagent exactly twice and merge both sets of results
+B) An iterative refinement loop: the coordinator evaluates the synthesis for gaps,
+   re-delegates targeted follow-up queries, and re-invokes synthesis until sufficient
+C) Accept the first synthesis pass as final, since re-running risks introducing drift
+D) Ask the report generator to pad thin sections with general background knowledge
 
-**3.6 (Domain 2)** — All subagents get the full 18-tool catalog; synthesis tries web search, search tries document parsing. Correct redesign?
-A. Add a 19th tool that tells agents which tool to use
-B. Alphabetize the tool list
-C. Write longer prompts warning agents off certain tools
-D. Scope each subagent's tool set to its role — a handful of relevant tools each
+**3.6 (Domain 2)** — Every subagent gets the full 18-tool catalog; the synthesis agent
+tries calling web search, and the search agent tries document parsing. Correct
+redesign?
+A) Add a 19th coordinating tool whose job is telling other agents which tool to use
+B) Write longer prompts for each subagent, explicitly warning it off certain tools
+C) Alphabetize the shared tool catalog so relevant tools appear earlier in the list
+D) Scope each subagent's tool set to its actual role — a handful of relevant tools each
 
-**3.7 (Domain 2)** — Subagents burn many calls just discovering what data exists before real work begins. Which MCP capability reduces this?
-A. Expose content catalogs (document hierarchies, schemas) as MCP resources, giving visibility without exploratory tool calls
-B. Increase tool-call budget
-C. Hard-code current inventory into every system prompt
-D. Remove discovery capability
+**3.7 (Domain 2)** — Subagents burn many calls just discovering what data exists
+before real work begins. Which MCP capability reduces this?
+A) Hard-code the current data inventory directly into every subagent's system prompt
+B) Expose content catalogs — document hierarchies, schemas — as MCP resources, giving
+   visibility without exploratory tool calls
+C) Remove the subagents' ability to explore the data source at all
+D) Increase each subagent's allotted tool-call budget so discovery has more room
 
-**3.8 (Domain 5)** — Final reports cite nothing; each summarization step strips source attribution. Structural fix?
-A. Report generator adds plausible citations at the end
-B. Instruct synthesis to write "sources available on request"
-C. Require subagents to output structured claim-source mappings (claim, evidence, source) that every downstream agent preserves through synthesis
-D. Reduce summarization steps to one
+**3.8 (Domain 5)** — Final reports cite nothing, because each summarization step
+strips source attribution along the way. Structural fix?
+A) Reduce the number of summarization steps in the pipeline down to exactly one
+B) Instruct the synthesis step to append "sources available on request" at the end
+C) Require subagents to output structured claim-source mappings — claim, evidence,
+   source — that every downstream agent preserves through synthesis
+D) Have the report generator append plausible-looking citations after the fact
 
-**3.9 (Domain 5, select TWO)** — Two credible sources report different market-size figures; one subagent picked the larger number. Which TWO practices are correct?
-A. Annotate the conflict explicitly (both values + attribution); let coordinator decide reconciliation **✓**
-B. Average the two figures
-C. Always adopt the more recent source, discard the other
-D. Require publication/data-collection dates in structured outputs, so temporal differences aren't misread as contradictions **✓**
-E. Exclude both sources
+**3.9 (Domain 5, select TWO)** — Two credible sources report different market-size
+figures, and one subagent simply picked the larger number. Which TWO practices are
+correct?
+A) Annotate the conflict explicitly — both values and their attribution — and let the
+   coordinator decide on reconciliation
+B) Average the two figures together and report the mean as the answer
+C) Require publication or data-collection dates in structured outputs, so temporal
+   differences aren't misread as contradictions
+D) Always adopt whichever source is more recent and silently discard the other
+E) Exclude both conflicting sources from the final report entirely
 
-**3.10 (Domain 5, select TWO)** — How should the web search subagent behave when searches fail or return nothing? Which TWO behaviors are correct?
-A. On any failure, terminate the entire workflow
-B. Attempt local recovery for transient failures; propagate only unresolved errors, including what was attempted and partial results **✓**
-C. Return empty results marked as success on failure
-D. Report every problem as generic "search unavailable"
-E. Distinguish access failures (timeouts/errors) from valid empty results (successful queries, no matches) **✓**
+**3.10 (Domain 5, select TWO)** — How should the web-search subagent behave when
+searches fail or return nothing? Which TWO behaviors are correct?
+A) Attempt local recovery for transient failures, and propagate only unresolved
+   errors, including what was attempted and any partial results
+B) Report every problem uniformly as a generic "search unavailable" message
+C) Terminate the entire multi-agent workflow the moment any single search fails
+D) Distinguish access failures (timeouts, errors) from genuinely valid empty results
+   (a successful query that simply found no matches)
+E) Return empty results marked as a successful search whenever a failure occurs
 
 ---
 
 ## Scenario 4: Developer Productivity with Claude
 
-**4.1 (Domain 2, select TWO)** — Locate files matching a test naming convention, and find every occurrence of a string in code. Which TWO tool selections are correct?
-A. `Glob` with a path pattern for test files **✓**
-B. `Grep` with a filename pattern for test files
-C. `Grep` for the string — content search is Grep's job **✓**
-D. `Glob` for the string across file contents
-E. `Bash` + `cat` on every file
+**4.1 (Domain 2, select TWO)** — Locate files matching a test-naming convention, and
+find every occurrence of a string across the codebase. Which TWO tool selections are
+correct?
+A) `Grep` with a filename-matching pattern for the test files
+B) `Glob` with a path pattern to locate the test files
+C) `Glob` searching across file contents for the target string
+D) `Grep` searching file contents for the target string
+E) `Bash` piped through `cat` on every file in the repository
 
-**4.2 (Domain 2)** — `Edit` fails because anchor text appears in six places (not unique). Standard fallback?
-A. Delete five occurrences to make it unique
-B. Retry the same Edit repeatedly
-C. Switch to Bash + `sed`
-D. `Read` the full file, then `Write` the complete modified content
+**4.2 (Domain 2)** — `Edit` fails because the anchor text appears in six places, not
+uniquely. Standard fallback?
+A) Delete five of the six occurrences first so the anchor becomes unique
+B) `Read` the full file, then `Write` back the complete modified content
+C) Retry the same `Edit` call repeatedly until it happens to succeed
+D) Switch to `Bash` and run `sed` directly against the file
 
-**4.3 (Domain 2)** — Agent Reads dozens of files upfront and exhausts context before answering "how does billing work?" Correct strategy?
-A. Read files alphabetically until context limit
-B. Work incrementally: `Grep` to find entry points, then `Read` selectively to trace flows
-C. Ask the developer to explain instead
-D. Read only the README
+**4.3 (Domain 2)** — The agent reads dozens of files upfront and exhausts context
+before ever answering "how does billing work?" Correct strategy?
+A) Read only the project's README and answer from that alone
+B) Read files in alphabetical order until the context limit is reached
+C) Work incrementally: `Grep` to find entry points, then `Read` selectively to trace
+   the flows that actually matter
+D) Ask the developer to explain the billing flow instead of reading any files
 
-**4.4 (Domain 2)** — Shared GitHub MCP server (needs auth token) + a personal experimental MCP server. Correct configuration?
-A. Shared server in project-scoped `.mcp.json` with `${GITHUB_TOKEN}` env expansion (no committed secret); personal server in user-scoped `~/.claude.json`
-B. Both in `.mcp.json`, token pasted in
-C. Both in `~/.claude.json`, instructions in wiki
-D. Shared server in `CLAUDE.md`, personal in `.claude/commands/`
+**4.4 (Domain 2)** — A shared GitHub MCP server (needs an auth token) plus a personal
+experimental MCP server. Correct configuration?
+A) Both servers configured in `~/.claude.json`, with setup instructions on a wiki page
+B) Shared server in project-scoped `.mcp.json` using `${GITHUB_TOKEN}` env expansion
+   (no committed secret); personal server in user-scoped `~/.claude.json`
+C) Shared server described in `CLAUDE.md`; personal server under `.claude/commands/`
+D) Both servers in `.mcp.json`, with the token value pasted directly into the file
 
-**4.5 (Domain 3)** — Off-by-one bug fix (clear stack trace) vs. 45+ file HTTP library migration (several viable approaches). How to assign plan mode vs. direct execution?
-A. Plan mode for both
-B. Direct execution for both
-C. Direct execution for the well-scoped bug fix; plan mode for the migration
-D. Plan mode for the bug fix, direct execution for the migration
+**4.5 (Domain 3)** — An off-by-one bug fix (clear stack trace) vs. a 45+ file HTTP
+library migration (several viable approaches). How to assign plan mode vs. direct
+execution?
+A) Plan mode for the bug fix, and direct execution for the larger migration
+B) Direct execution for the well-scoped bug fix; plan mode for the migration
+C) Plan mode for both tasks, since more review is always the safer default
+D) Direct execution for both tasks, since planning mostly adds overhead
 
-**4.6 (Domain 3)** — Developers invoke `/generate-fixture` bare, without entity type/record count, then get confused. Which frontmatter option fixes this?
-A. `context: fork`
-B. `allowed-tools`
-C. Longer skill description
-D. `argument-hint` — prompts for required parameters when invoked without arguments
+**4.6 (Domain 3)** — Developers invoke `/generate-fixture` bare, without an entity
+type or record count, then get confused by the result. Which frontmatter option fixes
+this?
+A) `allowed-tools`, restricting which tools the fixture generator can call
+B) A longer skill description explaining the expected parameters in prose
+C) `context: fork`, isolating fixture generation from the main conversation
+D) `argument-hint` — prompts for the required parameters when invoked bare
 
-**4.7 (Domain 3)** — Where should (1) universal coding standards and (2) an occasional multi-step release-notes workflow live?
-A. Both as skills
-B. Standards in `CLAUDE.md` (always loaded); release-notes workflow as a skill in `.claude/skills/`, invoked on demand
-C. Both in `CLAUDE.md`
-D. Standards as a skill; workflow in `CLAUDE.md`
+**4.7 (Domain 3)** — Where should (1) universal coding standards and (2) an occasional
+multi-step release-notes workflow live?
+A) Standards as a skill invoked on demand; the workflow always loaded in `CLAUDE.md`
+B) Standards in `CLAUDE.md` (always loaded); the release-notes workflow as a skill in
+   `.claude/skills/`, invoked on demand
+C) Both the standards and the workflow written directly into `CLAUDE.md`
+D) Both the standards and the workflow implemented as on-demand skills
 
-**4.8 (Domain 1)** — Open-ended task: "add comprehensive tests to this legacy codebase," risk concentration unknown. Which decomposition fits?
-A. Map codebase structure, identify high-impact areas, create a prioritized plan that adapts as dependencies/surprises are discovered
-B. Write tests file-by-file in directory order
-C. Generate all tests in one maximal request
-D. Test only code modified in the last month
+**4.8 (Domain 1)** — An open-ended task — "add comprehensive tests to this legacy
+codebase" — with unknown risk concentration. Which decomposition fits?
+A) Generate all tests for the entire codebase in one maximal request
+B) Map the codebase's structure, identify high-impact areas, and create a prioritized
+   plan that adapts as dependencies and surprises are discovered
+C) Write tests file-by-file, strictly in directory order
+D) Test only the code that was modified within the last month
 
-**4.9 (Domain 1)** — Fixed five-aspect code review vs. production-incident investigation whose next step depends on findings. Which pairing is right?
-A. Dynamic decomposition for both
-B. Prompt chaining for both
-C. Prompt chaining (fixed sequence) for the predictable review; dynamic adaptive decomposition for the investigation
-D. Dynamic decomposition for the review; prompt chaining for the investigation
+**4.9 (Domain 1)** — A fixed five-aspect code review vs. a production-incident
+investigation whose next step depends on prior findings. Which pairing is right?
+A) Dynamic decomposition for the review; prompt chaining for the investigation
+B) Dynamic decomposition applied uniformly to both tasks
+C) Prompt chaining (a fixed sequence) for the predictable review; dynamic, adaptive
+   decomposition for the investigation
+D) Prompt chaining applied uniformly to both tasks
 
-**4.10 (Domain 1, select TWO)** — Which TWO statements about subagents (`AgentDefinition`) are accurate?
-A. Subagents automatically inherit parent's full conversation history
-B. Each `AgentDefinition` carries its own description, system prompt, and tool restrictions for its role **✓**
-C. Subagents can be spawned without the `Task` tool if the prompt describes them clearly
-D. Subagents share no memory between invocations — context must be provided explicitly in the prompt **✓**
-E. Subagent tool restrictions are advisory and not enforced at runtime
+**4.10 (Domain 1, select TWO)** — Which TWO statements about subagents
+(`AgentDefinition`) are accurate?
+A) Each `AgentDefinition` carries its own description, system prompt, and tool
+   restrictions for its assigned role
+B) Subagents automatically inherit the parent's full conversation history
+C) Subagents can be spawned without the `Task` tool if the prompt describes them
+   clearly enough
+D) Subagents share no memory between invocations — context must be provided
+   explicitly within the delegation prompt
+E) Subagent tool restrictions are advisory guidance and aren't enforced at runtime
 
 ---
 ## Scenario 5: Claude Code for Continuous Integration
 
-**5.1 (Domain 3)** — CI job must run Claude Code non-interactively and produce review findings your pipeline can parse and post as inline PR comments. Which invocation is correct?
-A. `claude "review this PR"` piped through `grep` to extract findings from prose
-B. `claude -p "review this PR"` with `--output-format json` and `--json-schema`, producing machine-parseable structured findings without waiting for interactive input
-C. `claude --batch "review this PR" --format=structured`
-D. `claude -p "review this PR"` alone, then regex-parsing the prose output
+**5.1 (Domain 3)** — A CI job must run Claude Code non-interactively and produce
+review findings the pipeline can parse and post as inline PR comments. Which
+invocation is correct?
+A) `claude "review this PR"`, piped through `grep` to extract findings from the prose
+B) `claude --batch "review this PR" --format=structured`
+C) `claude -p "review this PR"` with `--output-format json` and `--json-schema`,
+   producing machine-parseable structured findings without waiting on interactive input
+D) `claude -p "review this PR"` alone, followed by regex-parsing of the prose output
 
-**5.2 (Domain 3)** — CI-generated tests ignore the team's fixture library, duplicate helper setup, and test trivialities; developers reject most of them. What is the configuration-level fix?
-A. Generate three times as many tests so some survive review
-B. Have developers rewrite the generated tests as a standing chore
-C. Lower the temperature of the generation call
-D. Document testing standards, what makes a test valuable, and the available fixtures in `CLAUDE.md` — the mechanism that supplies project context to CI-invoked Claude Code
+**5.2 (Domain 3)** — CI-generated tests ignore the team's fixture library, duplicate
+helper setup, and test trivialities; developers reject most of them. What is the
+configuration-level fix?
+A) Lower the temperature of the generation call so output is more conservative
+B) Generate three times as many tests, on the assumption some will survive review
+C) Have developers rewrite the generated tests as a standing recurring chore
+D) Document testing standards, what makes a test valuable, and the available fixtures
+   in `CLAUDE.md` — the mechanism that supplies project context to CI-invoked runs
 
-**5.3 (Domain 3)** — Reviews re-run after each new commit to a PR, and the bot re-posts the same findings every time; developers now mute it. How should re-reviews be designed?
-A. Include the prior review's findings in context and instruct Claude to report only new issues or previously reported ones that remain unaddressed
-B. Review only the newest commit's diff in isolation
-C. Limit reviews to one per PR regardless of subsequent commits
-D. Post all findings again but formatted differently to seem new
+**5.3 (Domain 3)** — Reviews re-run after each new commit to a PR, and the bot
+re-posts the same findings every time; developers have started muting it. How should
+re-reviews be designed?
+A) Limit reviews to exactly one per PR, regardless of any later commits
+B) Post all the same findings again, reformatted slightly so they look new
+C) Review only the newest commit's diff, completely in isolation from prior reviews
+D) Include the prior review's findings in context and instruct the model to report
+   only new issues, or previously reported ones that remain unaddressed
 
-**5.4 (Domain 3)** — The same Claude Code session that generated a change also reviews it, and the review is conspicuously gentle, missing issues an independent reviewer catches. Why, and what is the design implication?
-A. The model is being polite; instruct it to be harsher
-B. Reviews should always be performed by a larger model tier
-C. A session retains the reasoning context from generation, making it less likely to question its own decisions — so CI reviews should run in an independent instance without the generator's context
-D. Generation and review must run on different days to avoid contamination
+**5.4 (Domain 3)** — The same Claude Code session that generated a change also
+reviews it, and the review is conspicuously gentle, missing issues an independent
+reviewer catches. Why, and what is the design implication?
+A) Generation and review should simply run on different calendar days
+B) A session retains the reasoning context from generation, making it less likely to
+   question its own decisions — CI reviews should run in an independent instance
+   without the generator's context
+C) Reviews should always be performed on a strictly larger model tier than generation
+D) The model is merely being polite; instruct it directly to be harsher
 
-**5.5 (Domain 4)** — Your review prompt says "be conservative and only report high-confidence findings," yet false positives remain high. What does effective precision engineering look like instead?
-A. Add "be very, very conservative" for stronger emphasis
-B. Report all findings but sort them by the model's stated confidence
-C. Reduce the number of files reviewed per run
-D. Replace confidence language with explicit categorical criteria: define which issue types to report (bugs, security) and which to skip (minor style, local patterns), with concrete boundaries
+**5.5 (Domain 4)** — The review prompt says "be conservative and only report
+high-confidence findings," yet false positives remain high. What does effective
+precision engineering look like instead?
+A) Reduce the number of files reviewed per run to lower total findings
+B) Add "be very, very conservative" to the prompt for stronger emphasis
+C) Report all findings, but sort them by the model's own stated confidence
+D) Replace confidence language with explicit categorical criteria — which issue types
+   to report, which to skip — with concrete boundaries
 
-**5.6 (Domain 4)** — Findings in the "code style" category are 70% false positives, and developers have begun dismissing security findings too — trust in the whole reviewer is collapsing. What is the right operational move?
-A. Ship more style findings to demonstrate the category's importance
-B. Temporarily disable the style category to restore trust in the accurate categories, while improving the style prompts before re-enabling it
-C. Rename "code style" to "code quality"
-D. Ask developers to be more tolerant of noise during the tuning period
+**5.6 (Domain 4)** — Findings in the "code style" category are 70% false positives,
+and developers have begun dismissing security findings too — trust in the whole
+reviewer is collapsing. What is the right operational move?
+A) Rename "code style" to "code quality" to reset developer perception
+B) Temporarily disable the style category to restore trust in the accurate
+   categories, while improving the style prompts before re-enabling it
+C) Ship more style findings so the category demonstrates its own importance over time
+D) Ask developers to be more tolerant of noise while the category is tuned
 
-**5.7 (Domain 4)** — The reviewer labels near-identical issues "critical" one day and "minor" the next. Severity-based merge gates are therefore unreliable. How do you get consistent severity classification?
-A. Define explicit severity criteria with concrete code examples for each level, so every severity has an operational definition the model can match against
-B. Remove severity levels and treat all findings equally
-C. Let the model choose severity freely but average it over five runs
-D. Map severity to line count of the affected code
+**5.7 (Domain 4)** — The reviewer labels near-identical issues "critical" one day and
+"minor" the next, making severity-based merge gates unreliable. How do you get
+consistent severity classification?
+A) Map severity directly to the line count of the affected code change
+B) Remove severity levels entirely and treat every finding equally
+C) Let the model choose severity freely, but average its choice over five runs
+D) Define explicit severity criteria with concrete code examples for each level, so
+   every severity has an operational definition the model can match against
 
-**5.8 (Domain 4)** — The reviewer keeps flagging your codebase's accepted idiomatic patterns (e.g., intentional fall-throughs with comments) as bugs, while your detailed prose instructions haven't fixed it. What is the most effective addition?
-A. A rule that anything containing a comment is acceptable
-B. An instruction to "use good judgment about idioms"
-C. Few-shot examples distinguishing the accepted patterns from genuine issues — showing the reasoning why each is or isn't reportable — so the model generalizes the judgment to novel cases
-D. A ban on reviewing files containing any idiomatic pattern
+**5.8 (Domain 4)** — The reviewer keeps flagging accepted idiomatic patterns (e.g.,
+intentional fall-throughs with comments) as bugs, and detailed prose instructions
+haven't fixed it. What is the most effective addition?
+A) A blanket rule that anything containing a code comment is acceptable
+B) A ban on reviewing any file that contains an idiomatic pattern at all
+C) Few-shot examples distinguishing the accepted patterns from genuine issues,
+   showing the reasoning for why each is or isn't reportable, so the model
+   generalizes the judgment to novel cases
+D) An instruction to "use good judgment about idioms" in the system prompt
 
-**5.9 (Domain 4, select TWO)** — Your team is deciding which CI workloads to move to the Message Batches API for its 50% cost savings. Which TWO statements are accurate?
-A. Batch processing suits latency-tolerant, non-blocking workloads like nightly test generation and weekly audit reports ✓
-B. Batches are guaranteed to complete within one hour
-C. The batch API supports multi-turn tool calling within a single request
-D. Blocking workflows such as pre-merge checks should stay on the synchronous API, since batches can take up to 24 hours with no latency SLA ✓
-E. Batch responses cannot be matched back to their requests
+**5.9 (Domain 4, select TWO)** — Deciding which CI workloads to move to the Message
+Batches API for its cost savings. Which TWO statements are accurate?
+A) Blocking workflows such as pre-merge checks should stay on the synchronous API,
+   since batches can take up to 24 hours with no latency SLA
+B) The batch API supports multi-turn tool calling within a single submitted request
+C) Batch processing suits latency-tolerant, non-blocking workloads like nightly test
+   generation and weekly audit reports
+D) Batches are guaranteed to complete within one hour of submission
+E) Batch responses cannot be matched back to the requests that produced them
 
-**5.10 (Domain 4, select TWO)** — You are adding few-shot examples to the review prompt. Which TWO practices reflect how few-shot prompting works best?
-A. Include as many examples as possible — twenty or more — to cover every case
-B. Use 2–4 targeted examples aimed at the ambiguous scenarios, showing the reasoning for why one action was chosen over plausible alternatives ✓
-C. Once examples are added, explicit criteria become unnecessary
-D. Rely on examples only for prose tasks; they don't work for code
-E. Include examples demonstrating the exact desired output format — location, issue, severity, suggested fix — to achieve consistent, actionable findings ✓
-
+**5.10 (Domain 4, select TWO)** — Adding few-shot examples to the review prompt.
+Which TWO practices reflect how few-shot prompting works best?
+A) Include examples demonstrating the exact desired output format — location, issue,
+   severity, suggested fix — to achieve consistent, actionable findings
+B) Include as many examples as possible, twenty or more, to cover every case
+C) Rely on examples only for prose tasks, since they don't transfer to code review
+D) Use 2–4 targeted examples aimed at the genuinely ambiguous scenarios, showing the
+   reasoning for why one action was chosen over plausible alternatives
+E) Treat explicit criteria as unnecessary once a handful of examples has been added
 
 ---
 
 ## Scenario 6: Structured Data Extraction
 
-**6.1 (Domain 4)** — Pipeline asks Claude to "respond with JSON" in plain text; downstream parsing breaks on markdown fences, trailing commentary, and occasional malformed syntax. What is the most reliable structural fix?
-A. Strengthen the prompt: "respond ONLY with valid JSON, no exceptions"
-B. Post-process the text with regexes that strip fences and repair syntax
-C. Define the extraction as a tool whose input schema is your JSON schema, and read the structured data from the `tool_use` block — guaranteeing schema-compliant output and eliminating JSON syntax errors
-D. Switch to XML output, which models format more carefully
+**6.1 (Domain 4)** — A pipeline asks Claude to "respond with JSON" in plain text;
+downstream parsing breaks on markdown fences, trailing commentary, and occasional
+malformed syntax. What is the most reliable structural fix?
+A) Post-process the text with regexes that strip fences and repair syntax
+B) Switch to XML output instead, which models are said to format more carefully
+C) Strengthen the prompt to: "respond ONLY with valid JSON, no exceptions"
+D) Define the extraction as a tool whose input schema is your JSON schema, and read
+   the structured data from the `tool_use` block — guaranteeing schema-compliant
+   output and eliminating JSON syntax errors
 
-**6.2 (Domain 4)** — Several extraction tools (one per document type), incoming documents of unknown type. The model must always produce a structured extraction, choosing the appropriate schema itself, never conversational text. Which `tool_choice` setting is correct?
-A. `tool_choice: "any"` — the model must call a tool but may choose which, guaranteeing structured output while leaving schema selection to the model
-B. `tool_choice: "auto"` — the model decides whether to call a tool at all
-C. `tool_choice` forced to one named tool, applied to every document
-D. Omit `tool_choice`, since defaults handle this
+**6.2 (Domain 4)** — Several extraction tools exist, one per document type, and
+incoming documents are of unknown type. The model must always produce a structured
+extraction, choosing the appropriate schema itself, never conversational text. Which
+`tool_choice` setting is correct?
+A) `tool_choice` forced to one single named tool, applied to every document regardless
+B) `tool_choice: "auto"` — the model decides for itself whether to call a tool at all
+C) Omit `tool_choice` entirely, since the default already handles this correctly
+D) `tool_choice: "any"` — the model must call some tool but may choose which,
+   guaranteeing structured output while leaving schema selection to the model
 
-**6.3 (Domain 4)** — Invoice schema marks `vendor_tax_id` as required. On invoices that genuinely lack a tax ID, the model fabricates plausible-looking values. What is the schema-level fix?
-A. Add a prompt instruction: "never fabricate tax IDs"
-B. Post-validate tax IDs against a checksum and discard failures
-C. Lower the temperature to make fabrication less creative
-D. Make the field optional/nullable so the model can legitimately return null when the information is absent from the source document
+**6.3 (Domain 4)** — An invoice schema marks `vendor_tax_id` as required. On invoices
+that genuinely lack a tax ID, the model fabricates plausible-looking values. What is
+the schema-level fix?
+A) Add a prompt instruction telling the model never to fabricate tax IDs
+B) Lower the temperature so any fabrication is at least less creative
+C) Make the field optional/nullable, so the model can legitimately return null when
+   the information is genuinely absent from the source document
+D) Post-validate tax IDs against a checksum and discard any that fail it
 
-**6.4 (Domain 4)** — Extractions are always syntactically valid, yet invoices arrive where line items don't sum to the stated total, and values occasionally land in the wrong fields. What should you understand and do?
-A. Schema compliance was falsely advertised; file a bug
-B. Strict schemas eliminate syntax errors but not semantic ones — add semantic validation, e.g., extracting `calculated_total` alongside `stated_total` and flagging discrepancies with a `conflict_detected` boolean
-C. Make every field an unconstrained string so nothing can be wrong
-D. Re-run each extraction until the numbers happen to sum
+**6.4 (Domain 4)** — Extractions are always syntactically valid, yet invoices arrive
+where line items don't sum to the stated total, and values occasionally land in the
+wrong fields. What should you understand and do?
+A) Re-run each extraction repeatedly until the numbers happen to sum correctly
+B) Make every field an unconstrained string so nothing can technically be "wrong"
+C) Strict schemas eliminate syntax errors but not semantic ones — add a semantic
+   validation layer, e.g., extracting a `calculated_total` alongside `stated_total`
+   and flagging discrepancies with a `conflict_detected` boolean
+D) Conclude schema compliance was falsely advertised and file it as a platform bug
 
-**6.5 (Domain 4)** — An extraction fails Pydantic validation with two specific field errors. You will retry. What should the retry request contain, and when would you skip retrying altogether?
-A. Just the instruction "try again more carefully"; skip retries on Mondays
-B. Only the validation errors, to keep the retry cheap; always retry at least five times
-C. The original document, the failed extraction, and the specific validation errors — enabling targeted self-correction; skip retrying when the required information is simply absent from the source, since no retry can produce it
-D. A different document, to give the model a fresh start
+**6.5 (Domain 4)** — An extraction fails validation with two specific field errors,
+and you plan to retry. What should the retry request contain, and when should you
+skip retrying altogether?
+A) A different document entirely, to give the model a genuinely fresh start
+B) The original document, the failed extraction, and the specific validation errors —
+   enabling targeted self-correction; skip retrying when the required information is
+   simply absent from the source, since no retry can produce it
+C) Only the validation errors, to keep the retry request cheap, and always retry at
+   least five times regardless of the cause
+D) Just the instruction "try again more carefully," with no other context attached
 
-**6.6 (Domain 4)** — An overnight batch of 10,000 documents completes with 200 failures: most are oversized documents that blew past context limits, plus some transient errors. What is the correct failure-handling workflow?
-A. Identify the failed requests by `custom_id` and resubmit only those, with modifications where needed — e.g., chunking the oversized documents before resubmission
-B. Resubmit the entire 10,000-document batch and keep whichever results arrive first
-C. Discard the 200 failures as an acceptable loss rate
-D. Switch the 200 failures to the synchronous API unchanged, where context limits don't apply
+**6.6 (Domain 4)** — An overnight batch of 10,000 documents completes with 200
+failures: mostly oversized documents past context limits, plus some transient errors.
+What is the correct failure-handling workflow?
+A) Switch the 200 failures over to the synchronous API unchanged, on the assumption
+   its context limits don't apply
+B) Resubmit the entire 10,000-document batch and keep whichever set of results
+   arrives back first
+C) Discard the 200 failures outright as an acceptable loss rate for this volume
+D) Identify the failed requests by `custom_id` and resubmit only those, with
+   modifications where needed — e.g., chunking the oversized documents first
 
-**6.7 (Domain 2)** — A single `analyze_document` tool handles extraction, summarization, and claim verification, chosen by a `mode` parameter. The agent regularly picks the wrong mode and results are inconsistent. What is the recommended redesign?
-A. Add a fourth mode that automatically detects the right mode
-B. Document the modes more thoroughly inside the one description
-C. Reduce to two modes by merging extraction into summarization
-D. Split the generic tool into purpose-specific tools — `extract_data_points`, `summarize_content`, `verify_claim_against_source` — each with a defined input/output contract
+**6.7 (Domain 2)** — A single `analyze_document` tool handles extraction,
+summarization, and claim verification, selected by a `mode` parameter. The agent
+regularly picks the wrong mode and results are inconsistent. What is the recommended
+redesign?
+A) Reduce to two modes by merging extraction into summarization
+B) Split the generic tool into purpose-specific tools — `extract_data_points`,
+   `summarize_content`, `verify_claim_against_source` — each with a defined
+   input/output contract
+C) Document the three modes more thoroughly inside the single existing description
+D) Add a fourth mode whose job is automatically detecting which mode to use
 
-**6.8 (Domain 2)** — Your MCP extraction tool hits a parsing failure and returns "Error: could not parse document" as an ordinary successful text result. The agent then treats that sentence as document content. What is the correct MCP pattern?
-A. Prefix error text with "SYSTEM ERROR:" so the agent notices
-B. Return the failure with the MCP `isError` flag set, so the agent programmatically recognizes a tool failure instead of interpreting error prose as data
-C. Return an empty string on failure
-D. Throw an unhandled exception and let the connection drop
+**6.8 (Domain 2)** — An MCP extraction tool hits a parsing failure and returns "Error:
+could not parse document" as an ordinary successful text result. The agent then treats
+that sentence as document content. What is the correct MCP pattern?
+A) Throw an unhandled exception on failure and let the connection drop entirely
+B) Return the failure with the MCP `isError` flag set, so the agent programmatically
+   recognizes a tool failure instead of interpreting error prose as data
+C) Return an empty string instead of an error message on failure
+D) Prefix the error text with "SYSTEM ERROR:" so the agent is more likely to notice it
 
-**6.9 (Domain 5, select TWO)** — Your extraction system reports 97% aggregate accuracy, and leadership wants to cut human review of high-confidence extractions. Which TWO practices must precede that decision?
-A. Segment accuracy by document type and field — verifying consistent performance across all segments, since aggregate metrics can mask systematic failures on specific types ✓
-B. Accept the 97% aggregate as sufficient evidence on its own
-C. Implement stratified random sampling of high-confidence extractions for ongoing error-rate measurement and detection of novel error patterns ✓
-D. Stop measuring once review is reduced, to save cost
-E. Review only extractions the model itself flags as uncertain
+**6.9 (Domain 5, select TWO)** — An extraction system reports 97% aggregate accuracy,
+and leadership wants to cut human review of high-confidence extractions. Which TWO
+practices must precede that decision?
+A) Accept the 97% aggregate figure as sufficient evidence on its own
+B) Segment accuracy by document type and field, verifying consistent performance
+   across all segments, since aggregate metrics can mask systematic failures on
+   specific types
+C) Implement stratified random sampling of high-confidence extractions for ongoing
+   error-rate measurement and detection of novel error patterns
+D) Review only the extractions the model itself flags as uncertain
+E) Stop measuring accuracy once review volume is reduced, in order to save cost
 
-**6.10 (Domain 5, select TWO)** — Reviewer capacity covers only a fraction of extractions, so review attention must be routed where errors are likeliest. Which TWO practices form a sound routing design?
-A. Trust the model's raw self-reported confidence scores without validation
-B. Have the model output field-level confidence scores, then calibrate review thresholds against a labeled validation set ✓
-C. Review a fixed 1% of extractions chosen by submission order
-D. Route to human review the extractions with low calibrated confidence or ambiguous/contradictory source documents, prioritizing limited reviewer capacity where errors concentrate ✓
-E. Review only documents longer than ten pages
+**6.10 (Domain 5, select TWO)** — Reviewer capacity covers only a fraction of
+extractions, so review attention must be routed where errors are likeliest. Which TWO
+practices form a sound routing design?
+A) Review a fixed 1% of extractions, chosen strictly by submission order
+B) Have the model output field-level confidence scores, then calibrate review
+   thresholds against a labeled validation set
+C) Trust the model's raw, self-reported confidence scores without further validation
+D) Route to human review the extractions with low calibrated confidence or
+   ambiguous/contradictory source documents, prioritizing limited reviewer capacity
+   where errors concentrate
+E) Review only documents longer than ten pages, regardless of confidence
+
 ---
 
-# Answer Key & Short Rationales
+## Answer Key & Rationale
 
 ### Scenario 1
-| # | Ans | Why |
-|---|-----|-----|
-| 1.1 | B | `stop_reason` is the designed termination signal — "tool_use" vs "end_turn," not text-pattern guessing or arbitrary caps. |
-| 1.2 | D | No auto-memory; your code appends a tool_result block and resends full history on the next call. |
-| 1.3 | A | Deterministic guarantees for financial rules need code-level interception (hooks), not probabilistic prompt compliance. |
-| 1.4 | C | Multi-issue decomposition within shared context protects first-contact resolution; don't drop or bounce stated concerns. |
-| 1.5 | B | Structured handoff transfers case state so a human without transcript access doesn't redo the investigation. |
-| 1.6 | D | Structured error metadata (category/retryable/description) lets the agent choose the correct recovery path. |
-| 1.7 | A | Policy violations are non-retryable business errors; retriable:false + explanation avoids futile retries. |
-| 1.8 | B, D | Input formats + examples plus explicit boundary language are what actually disambiguate similar tools. |
-| 1.9 | C | Explicit stated instructions outrank inferred signals (e.g., sentiment) — honor them immediately. |
-| 1.10 | A, D | Persist precise facts outside lossy summaries (A); trim noisy tool output before it enters context (D). |
+**1.1 — C.** *(A: keyword-pattern guessing is unreliable and not the designed
+signal. B: a fixed iteration cap is arbitrary relative to actual task completion. D:
+plenty of legitimate turns mix text and a tool call mid-reasoning.)*
+
+**1.2 — A.** *(B: no MCP mechanism pushes results into model memory directly. C: tool
+descriptions are static; they don't carry live results. D: re-invoking the same call
+doesn't deliver a result the model can read — a `tool_result` block does.)*
+
+**1.3 — D.** *(A: repeating advisory text is still advisory, not enforced. B:
+embedding a limit in a description is descriptive, not a runtime guarantee. C:
+temperature governs randomness, not compliance with a hard business rule.)*
+
+**1.4 — B.** *(A: silently drops two stated concerns, risking incomplete resolution.
+C: escalates a routine multi-part request the agent is equipped to handle. D: adds
+friction for concerns already clearly stated in one message.)*
+
+**1.5 — A.** *(B: raw JSON dumps aren't usable without domain interpretation. C: a
+name and score omit the substance a human needs to act. D: a bare escalation note
+forces the human to redo the investigation from scratch.)*
+
+**1.6 — B.** *(A: a fixed retry count ignores whether the failure is retryable at
+all. C: apologizing doesn't change wrong retry behavior. D: removing failure
+responses hides the problem instead of fixing the signal.)*
+
+**1.7 — C.** *(A: mislabeling a policy violation as transient causes futile,
+repeated retries. B: hides a real rejection as if it succeeded. D: a stack trace isn't
+actionable for the agent or the customer.)*
+
+**1.8 — B, D.** *(A: brevity alone doesn't add disambiguating information. C:
+emphasis markers don't convey which tool does what. E: removing description content
+entirely reintroduces the exact ambiguity being fixed.)*
+
+**1.9 — D.** *(A: still runs an inferred signal ahead of an explicit, stated
+instruction. B: adds friction the customer explicitly tried to avoid. C: directly
+attempts the thing the customer explicitly asked not to happen.)*
+
+**1.10 — A, D.** *(B: more token budget doesn't stop a summarizer from dropping
+detail it judges non-essential. C: more aggressive summarization increases the exact
+information loss causing the problem. E: shifts the burden back onto the customer
+instead of fixing the underlying context handling.)*
 
 ### Scenario 2
-| # | Ans | Why |
-|---|-----|-----|
-| 2.1 | C | User-scoped `~/.claude/commands/` stays personal and outside version control. |
-| 2.2 | B | `context: fork` isolates verbose skill exploration in a sub-context; only the result returns. |
-| 2.3 | D | `allowed-tools` is a runtime-enforced allowlist — a guarantee, not a request like prose instructions. |
-| 2.4 | A | Project-level `CLAUDE.md` is what every clone receives; `/memory` verifies what actually loaded. |
-| 2.5 | C | `.claude/rules/` splits a monolith into focused, path-scoped files loaded only when relevant. |
-| 2.6 | B | `--resume <name>` restores that specific session's full context. |
-| 2.7 | D | `fork_session` branches from a shared baseline into independent, non-contaminating explorations. |
-| 2.8 | A | Stale tool results make raw resumption unreliable; reseed a fresh session with curated valid conclusions. |
-| 2.9 | C | `/compact` compresses accumulated context in-session without ending it. |
-| 2.10 | B, E | A scratchpad preserves exact facts; subagent delegation keeps verbose exploration out of the main context. |
+**2.1 — C.** *(A: repo-scoped commands are shared with every teammate who clones it.
+B: documenting it doesn't stop it from appearing for everyone. D: a rules file with a
+glob is the wrong mechanism for a personal command's visibility.)*
+
+**2.2 — C.** *(A: narrowing tools doesn't address where the output volume lands. B:
+`argument-hint` shapes invocation, not where output is contained. D: `paths` scopes
+when a rule loads, not a skill's output isolation.)*
+
+**2.3 — C.** *(A: prose instructions are advisory and can still be circumvented. B:
+plan mode gates execution generally, not Bash specifically, and doesn't apply outside
+planning. D: trusting stated purpose provides no actual guarantee at runtime.)*
+
+**2.4 — B.** *(A: pasting standards manually doesn't scale and depends on remembering
+every session. C: copying a personal file onto other machines isn't how shared config
+is meant to propagate. D: email isn't a mechanism Claude Code reads from at all.)*
+
+**2.5 — C.** *(A: moving everything to user-level makes it personal instead of
+project-wide, the opposite of what's needed. B: a single command can't represent
+always-relevant standing conventions. D: deleting content risks losing genuinely
+needed but infrequently-touched rules.)*
+
+**2.6 — B.** *(A: pasting scrollback loses the actual session state and tool history.
+C: `-p` starts a fresh prompt, not a resumption of a specific named session. D:
+restores many sessions at once, not the one specifically named.)*
+
+**2.7 — D.** *(A: `/compact` condenses one ongoing session, it doesn't produce two
+independent, comparable branches. B: asking a model to "forget" doesn't reliably
+prevent contamination. C: redoing the baseline from scratch wastes the shared
+starting analysis and risks the two redoing it differently.)*
+
+**2.8 — C.** *(A: more token budget doesn't fix tool results that describe code no
+longer present. B: never resuming discards genuinely reusable prior conclusions
+unnecessarily. D: there's no such auto-detection — stale results stay stale.)*
+
+**2.9 — C.** *(A: `/rules` reloads configuration, not conversation history size. B:
+there's no `/fork` command distinct from `fork_session`, and forking starts something
+new rather than continuing productively in place. D: `/memory` inspects loaded memory
+files, not conversation-history bloat.)*
+
+**2.10 — B, E.** *(A: a bigger window still lets old-but-present detail get diluted
+by volume. C: asking for specificity doesn't supply facts the model has already lost
+track of. D: repetition doesn't create a durable, referenceable record.)*
 
 ### Scenario 3
-| # | Ans | Why |
-|---|-----|-----|
-| 3.1 | D | `Task` is the only spawning mechanism — missing from `allowedTools` means no delegation is possible regardless of prompt wording. |
-| 3.2 | B | Subagents don't inherit coordinator context; findings must be explicitly included in the delegation prompt. |
-| 3.3 | A | Emitting multiple `Task` calls in one response spawns subagents concurrently. |
-| 3.4 | C | Goal/criteria-based prompts let subagents adapt approach instead of breaking on rigid scripts. |
-| 3.5 | B | Iterative refinement: evaluate → targeted re-delegation → re-synthesize until coverage criteria are met. |
-| 3.6 | D | Narrow, role-scoped toolsets reduce misselection versus large shared catalogs. |
-| 3.7 | A | MCP resources expose catalogs for discovery without burning exploratory tool calls. |
-| 3.8 | C | Structured claim-source mappings preserved through every hop keep attribution intact into synthesis. |
-| 3.9 | A, D | Surface conflicts explicitly with attribution (A); dates prevent mistaking timing differences for contradictions (D). |
-| 3.10 | B, E | Layered resilience: fix transient issues locally, escalate what's unresolved (B); distinguish failure from valid-empty (E). |
+**3.1 — C.** *(A: model tier doesn't gate whether the spawning mechanism is even
+available. B: subagents in this framework are spawned programmatically via `Task`,
+not manually by a human. D: capitalization doesn't change tool availability.)*
+
+**3.2 — B.** *(A: search tools for the synthesis agent don't supply the missing
+prior findings. C: extended thinking doesn't manufacture facts never passed to it. D:
+politer phrasing doesn't transmit data that was never included.)*
+
+**3.3 — C.** *(A: running duplicate systems doesn't address sequencing within one
+coordinator. B: asking subagents to "work faster" doesn't remove serialized
+waiting. D: parallel `Task` calls within one turn are exactly how this is achieved.)*
+
+**3.4 — B.** *(A: routes every deviation to a human, defeating the point of
+delegation. C: a longer rigid script still fails on cases the script didn't
+anticipate. D: removing instructions entirely loses needed guidance on goals.)*
+
+**3.5 — B.** *(A: doubling every run without evaluation doesn't target the actual
+gaps. C: padding with generic knowledge doesn't add genuine coverage. D: accepting
+the first pass as final is precisely the behavior being fixed.)*
+
+**3.6 — D.** *(A: an extra coordinating tool adds another shared-catalog item rather
+than narrowing exposure. B: longer prompts are a soft constraint that still allows the
+wrong call. C: alphabetizing doesn't change which tools are available to whom.)*
+
+**3.7 — B.** *(A: hard-coded inventories go stale as data changes. C: removing
+exploration entirely blocks legitimate discovery too. D: a bigger budget still spends
+calls on discovery instead of removing the need for them.)*
+
+**3.8 — C.** *(A: fewer steps reduces but doesn't eliminate the attribution loss at
+each remaining step. B: a placeholder note doesn't actually preserve any source. D:
+fabricated citations after the fact are worse than no citations.)*
+
+**3.9 — A, C.** *(B: averaging obscures rather than resolves a genuine
+discrepancy. D: recency alone doesn't establish which figure is actually correct. E:
+excluding both sources discards genuinely useful data instead of reconciling it.)*
+
+**3.10 — A, D.** *(B: a generic message erases the distinction between causes that
+matter for recovery. C: terminating on any single search failure over-reacts to a
+often-recoverable transient issue. E: marking a failure as success actively misleads
+downstream steps.)*
 
 ### Scenario 4
-| # | Ans | Why |
-|---|-----|-----|
-| 4.1 | A, C | Glob matches file paths; Grep searches file contents — each tool does its own job. |
-| 4.2 | D | Read + Write replaces the whole file when Edit's unique-anchor requirement can't be met. |
-| 4.3 | B | Incremental Grep-then-Read tracing beats broad upfront Reads that exhaust context. |
-| 4.4 | A | Shared config via `.mcp.json` + env var expansion avoids committing secrets; personal server stays user-scoped. |
-| 4.5 | C | Direct execution for well-scoped, single-path work; plan mode for large-scale, multi-approach work. |
-| 4.6 | D | `argument-hint` prompts for missing required parameters on bare invocation. |
-| 4.7 | B | `CLAUDE.md` for always-relevant standards; skills for occasional, on-demand workflows. |
-| 4.8 | A | Adaptive, discovery-driven decomposition fits genuinely open-ended, high-uncertainty tasks. |
-| 4.9 | C | Prompt chaining for fixed/predictable workflows; dynamic decomposition where findings drive the next step. |
-| 4.10 | B, D | Each subagent config is self-contained (B); subagents share no memory across invocations (D). |
+**4.1 — B, D.** *(A: `Grep` matches content, not filenames, so it's the wrong tool
+for locating files by naming convention. C: `Glob` matches paths, not file contents,
+so it can't search for a string inside files. E: manually reading every file is far
+less efficient than either purpose-built tool.)*
+
+**4.2 — B.** *(A: deleting legitimate occurrences to force uniqueness risks losing
+needed content. C: repeating an already-failing call doesn't change the underlying
+non-uniqueness. D: bypassing `Edit` with raw `sed` loses `Edit`'s safety checks
+entirely.)*
+
+**4.3 — C.** *(A: a README rarely captures the actual code-level flow being asked
+about. B: alphabetical order has no relationship to which files are actually
+relevant. D: deferring to the developer skips work the agent is capable of doing
+itself.)*
+
+**4.4 — B.** *(A: putting the shared server in user-scoped config means teammates
+don't get it automatically. C: `CLAUDE.md` and `.claude/commands/` aren't where MCP
+server configuration lives at all. D: pasting a token directly into a committed file
+risks leaking a credential.)*
+
+**4.5 — B.** *(A: inverts the correct assignment — the bug fix needs no planning
+gate and the migration genuinely does. C: planning every trivial task adds needless
+friction. D: skipping planning on a genuinely multi-approach migration risks a
+poorly-chosen path.)*
+
+**4.6 — D.** *(A: `allowed-tools` restricts capability, not required-argument
+prompting. B: a longer description doesn't force parameters to be supplied at
+invocation time. C: `context: fork` addresses output isolation, not missing
+arguments.)*
+
+**4.7 — B.** *(A: inverts which content needs to always load versus load on demand.
+C: an occasional workflow doesn't need to be always-loaded standing context. D:
+standards that must apply to every task shouldn't require deliberate invocation.)*
+
+**4.8 — B.** *(A: a single maximal request can't adapt to dependencies discovered
+along the way. C: strict directory order ignores where the actual risk is
+concentrated. D: limiting scope to recent changes ignores legacy code that's the
+actual subject of the request.)*
+
+**4.9 — C.** *(A: inverts the correct pairing — the review is the predictable,
+fixed-order task and the investigation is the one that genuinely branches. B: applies
+dynamic decomposition even to the genuinely fixed, predictable review. D: applies
+fixed chaining even to the investigation whose steps can't be known in advance.)*
+
+**4.10 — A, D.** *(B: subagents do not automatically inherit the parent's
+conversation history. C: `Task` (or an equivalent explicit mechanism) is required to
+actually spawn a subagent — prose description alone doesn't spawn one. E: tool
+restrictions on a subagent are runtime-enforced, not merely advisory.)*
 
 ### Scenario 5
-| # | Ans | Why |
-|---|-----|-----|
-| 5.1 | B | `-p` makes it non-interactive; `--output-format json` + `--json-schema` guarantees machine-parseable structured findings instead of scraped prose. |
-| 5.2 | D | `CLAUDE.md` supplies persistent project context (standards, fixtures) to every invocation, including CI's `-p` runs — missing knowledge isn't fixed by volume or temperature. |
-| 5.3 | A | Feed the prior review's findings back into context and instruct the model to report only deltas — new or still-unaddressed issues — since Claude has no memory of the last CI run otherwise. |
-| 5.4 | C | A session that generated the code carries the reasoning that justified it, biasing self-review; run review in an independent instance with no generator context. |
-| 5.5 | D | Vague conservatism doesn't transfer; explicit categorical criteria with concrete boundaries give the model an operable rule. |
-| 5.6 | B | A high-noise category damages trust across all categories; disable and fix it offline rather than let it erode credibility everywhere. |
-| 5.7 | A | Concrete examples per severity level anchor an operational definition, preventing the same issue from drifting between "critical" and "minor." |
-| 5.8 | C | Few-shot examples with reasoning transfer nuanced judgment (accepted idiom vs. genuine bug) that prose alone failed to convey, and generalize to novel cases. |
-| 5.9 | A, D | Batch fits latency-tolerant, non-blocking workloads (A); blocking workflows must stay synchronous since batch has no latency SLA and can take up to 24 hours (D). |
-| 5.10 | B, E | Few-shot works best with a small number of targeted, reasoning-annotated examples (B) and examples that lock in exact output format for consistency (E) — not raw volume. |
+**5.1 — C.** *(A: piping through `grep` still depends on fragile prose parsing. B:
+there's no such `--batch`/`--format=structured` invocation in this tool. D: skipping
+the schema flag leaves the same fragile prose-parsing problem.)*
+
+**5.2 — D.** *(A: lower temperature doesn't supply missing knowledge of the fixture
+library or standards. B: generating more volume doesn't fix which conventions are
+followed. C: manual rewriting treats a recurring configuration gap as a one-off
+chore.)*
+
+**5.3 — D.** *(A: capping to one review misses genuinely new issues introduced by
+later commits. B: reposting the same findings reformatted is exactly the behavior
+causing developers to mute the bot. C: reviewing only the newest diff in isolation
+can't tell which prior findings are still unaddressed.)*
+
+**5.4 — B.** *(A: a calendar gap doesn't remove retained reasoning context from the
+same session. C: a larger model tier doesn't remove the bias introduced by shared
+context. D: politeness isn't the underlying mechanism — shared reasoning context is.)*
+
+**5.5 — D.** *(A: fewer files reviewed doesn't make the remaining criteria any less
+vague. B: repeating the same vague word more emphatically doesn't add an operational
+rule. C: sorting by self-reported confidence doesn't reduce genuinely false
+positives.)*
+
+**5.6 — B.** *(A: a rename doesn't change the category's actual false-positive rate.
+C: shipping more noisy findings erodes trust further rather than restoring it. D:
+asking for tolerance doesn't address the root noise problem.)*
+
+**5.7 — D.** *(A: line count has no reliable relationship to actual severity. B:
+removing severity entirely loses information merge gates depend on. C: averaging
+freely-chosen labels over several runs doesn't create a consistent operational
+definition.)*
+
+**5.8 — C.** *(A: a blanket comment-based rule would also excuse genuine bugs that
+happen to include a comment. B: banning review of any idiomatic file skips real
+issues those files might also contain. D: "use good judgment" is exactly the vague
+instruction that already failed to work here.)*
+
+**5.9 — A, C.** *(B: the batch API doesn't support this kind of multi-turn tool
+interaction within a single submitted request. D: there's no such fixed one-hour
+completion guarantee. E: batch responses are explicitly correlated back via
+`custom_id`, so this is the opposite of true.)*
+
+**5.10 — A, D.** *(B: large volumes of examples don't reliably improve
+performance and add cost with diminishing returns. C: few-shot examples are
+routinely used for structured/code-adjacent tasks, not just prose. E: explicit
+criteria remain useful alongside examples, not superseded by them.)*
 
 ### Scenario 6
+**6.1 — D.** *(A: regex repair is fragile and breaks on any format it wasn't written
+to handle. B: XML output is still free text that must be parsed and can still be
+malformed. C: prompt-level emphasis doesn't structurally prevent fences or syntax
+errors.)*
 
-| # | Ans | Why |
-|---|-----|-----|
-| 6.1 | C | Defining extraction as a tool call guarantees schema-compliant output by construction — no prose to parse, no fences or syntax errors possible. |
-| 6.2 | A | `tool_choice: "any"` forces a tool call every time (guaranteeing structured output) while leaving schema selection to the model's judgment. |
-| 6.3 | D | Nullable/optional fields give the model a legitimate way to say "absent," removing the structural pressure that causes fabrication. |
-| 6.4 | B | Schema compliance guarantees syntax, not truth; add semantic validation (e.g., calculated vs. stated total, conflict flag) as a separate check. |
-| 6.5 | C | Retry with the original document, failed extraction, and specific errors for targeted self-correction; skip retrying when the data is genuinely absent from the source. |
-| 6.6 | A | `custom_id` lets you identify and resubmit only the failed subset, with fixes tailored to each failure type (e.g., chunking oversized docs). |
-| 6.7 | D | Purpose-specific tools with defined contracts replace an overloaded single tool with a hidden mode parameter, fixing selection reliability. |
-| 6.8 | B | The MCP `isError` flag lets the harness and model recognize failure structurally, instead of misreading error prose as real data. |
-| 6.9 | A, C | Segment accuracy to catch masked failures (A); keep measuring via stratified sampling to catch drift and novel errors after review is reduced (C). |
-| 6.10 | B, D | Calibrate model-reported confidence against real labeled outcomes (B), then route review to low-calibrated-confidence or ambiguous-source cases where errors concentrate (D). |
+**6.2 — D.** *(A: forcing one named tool for every document is wrong when the schema
+must be chosen per document type. B: `"auto"` is exactly the setting that permits the
+model to skip calling a tool. C: omitting `tool_choice` leaves the model free not to
+call a tool, the same gap as "auto".)*
 
----
+**6.3 — C.** *(A: a prompt instruction is advisory and doesn't remove the structural
+pressure to fill a required field. B: lower temperature reduces variety, not the
+underlying pressure to produce a value. D: checksum validation catches fabrication
+after the fact, rather than removing its root cause.)*
 
+**6.4 — C.** *(A: re-running repeatedly doesn't fix values landing in the wrong
+field the next time either. B: unconstrained strings remove the very structure the
+extraction is meant to provide. D: this isn't a broken feature — schema compliance
+was never meant to guarantee semantic correctness.)*
+
+**6.5 — B.** *(A: a different document doesn't help correct the original extraction
+that actually needs fixing. C: omitting the original document and extraction gives
+the retry no way to target the specific errors. D: a vague "try again" instruction
+gives the model no specific errors to correct.)*
+
+**6.6 — D.** *(A: switching only the failures to synchronous ignores that some may
+still be oversized for it too, without the chunking fix. B: resubmitting the entire
+batch redoes 9,800 successful extractions unnecessarily. C: discarding a chunk of
+retrievable failures loses correctable data for no reason.)*
+
+**6.7 — B.** *(A: merging two distinct capabilities recreates the same
+mode-confusion risk with one fewer mode. C: more prose inside the same overloaded
+tool doesn't remove the ambiguous `mode` parameter. D: an auto-detecting fourth mode
+just adds another decision point that can also be selected wrongly.)*
+
+**6.8 — B.** *(A: an unhandled exception drops the connection instead of returning a
+recognizable, structured failure. C: an empty string gives no information about what
+went wrong. D: a text prefix is still just text the model must correctly notice and
+parse.)*
+
+**6.9 — B, C.** *(A: accepting the aggregate alone is exactly the risk being flagged
+— it can mask segment-level failures. D: reviewing only self-flagged uncertain cases
+misses errors the model is confidently wrong about. E: stopping measurement removes
+the only way to detect drift after review is reduced.)*
+
+**6.10 — B, D.** *(A: a fixed 1% by submission order doesn't concentrate review where
+errors are likeliest. C: trusting raw self-reported confidence without calibration is
+the exact failure mode being fixed. E: document length has no established
+relationship to extraction error likelihood.)*
