@@ -1,0 +1,1530 @@
+# CCDV-F Practice Bank — Set 3 of 4 (60 questions)
+
+Third of four blueprint-weighted mock exams. No scenario repeats Set 1 or Set 2 — each set  
+tests the same underlying principles from a different angle so recognizing a memorized setup  
+can't substitute for understanding the concept.
+
+## Set 3 domain/sub-skill distribution (60 items)
+
+| Domain | Weight | Items this set |
+|---|---|---|
+| 1 — Agents and Workflows | 14.7% | 9 |
+| 2 — Applications and Integration | 33.1% | 19 |
+| 3 — Claude Code | 3.1% | 2 |
+| 4 — Eval, Testing, and Debugging | 2.6% | 1 |
+| 5 — Model Selection and Optimization | 16.8% | 10 |
+| 6 — Prompt and Context Engineering | 11.0% | 7 |
+| 7 — Security and Safety | 8.1% | 5 |
+| 8 — Tools and MCPs | 10.6% | 7 |
+| **Total** | 100% | **60** |
+
+---
+
+## Domain 1: Agents and Workflows (Q1.1–Q1.9)
+
+### Q1.1 · Agent Architecture
+A trip-booking assistant walks through fixed steps for every request — collect dates,
+collect destination, check availability, confirm price — but occasionally a user asks
+for a multi-city itinerary with flexible dates, which requires genuinely exploring
+several combinations and comparing tradeoffs before anything can be confirmed.
+
+A) A pure fixed workflow for every request, since the majority of bookings are simple
+   and the multi-city cases can be told to simplify their request instead.
+B) A hybrid: the fixed sequence handles simple single-destination bookings end to end,
+   with a branch to agentic, exploratory reasoning specifically for the multi-city/
+   flexible-date case that a fixed sequence can't represent in advance.
+C) A pure autonomous agent for every booking request, since any request could in
+   principle turn out to need multi-city exploration.
+D) A supervisor with a dedicated subagent per possible destination, since decomposing
+   by destination always improves reliability regardless of request complexity.
+
+### Q1.2 · Agent Architecture
+A supervisor agent sits in front of three specialists — billing, shipping, returns —
+but its routing logic always forwards every request to the billing specialist first
+"to be thorough," even for requests that are unambiguously about a return with no
+billing dimension at all.
+
+A) This is correct supervisor behavior, since routing every request through every
+   specialist in some order guarantees nothing is missed.
+B) This defeats the purpose of having specialists: the supervisor should classify the
+   request and route to the specialist(s) the request actually concerns, not forward
+   everything through one specialist by default regardless of relevance.
+C) This is correct as long as the billing specialist is the fastest of the three, since
+   starting with the fastest specialist minimizes total latency.
+D) This is a Claude Hooks problem, since routing logic should be enforced by a
+   `PreToolUse` hook rather than the supervisor's own reasoning.
+
+### Q1.3 · Agent Architecture
+A debugging assistant is asked to (1) report how many open GitHub issues a repo
+currently has, and (2) reproduce a flaky test failure by trying several different
+environment configurations until one triggers it. The team implements both as plain
+sequential tool calls in the main agent's own context.
+
+A) Both are implemented correctly, since subagent delegation is only relevant when
+   multiple different tools are involved, and both tasks here use similarly few tools.
+B) The issue count is fine as a single tool call in the main context; the flaky-test
+   reproduction is the kind of open-ended, exploratory, potentially context-heavy work
+   that benefits from subagent delegation, since it can churn through many attempts
+   without polluting the main session.
+C) Both should be delegated to subagents, since any task requiring more than one tool
+   call in sequence should always be isolated in its own context.
+D) Neither should be delegated, since subagents are reserved exclusively for tasks
+   involving multiple specialist domains, not exploratory single-domain work.
+
+### Q1.4 · Agent Construction with Claude
+An agent on the Claude Agent SDK is bounded only by `max_budget_usd`. In production, a
+bug causes it to make many extremely cheap, low-token tool calls in a tight loop —
+thousands of turns — that individually cost almost nothing, so the dollar budget is
+never tripped even though the agent has been looping for far longer than any
+reasonable task should take.
+
+A) `max_budget_usd` alone is sufficient here, since a runaway loop of cheap calls that
+   never exceeds the budget isn't actually a problem worth bounding separately.
+B) `max_budget_usd` and `max_turns` guard against different failure modes — a budget
+   cap doesn't help when each turn is individually cheap but the turn count runs away;
+   `max_turns` should be set alongside the budget cap to bound iteration count
+   independent of per-turn cost.
+C) The fix is to raise `max_budget_usd` further, since a higher budget threshold will
+   eventually be tripped and terminate the loop.
+D) The fix is to lower `max_tokens` per turn, since smaller individual responses will
+   cause the loop to terminate on its own once output becomes too short to be useful.
+
+### Q1.5 · Agent Construction with Claude
+Two engineers are working from the same active coding session. One wants to try a
+risky, experimental refactor without touching or being affected by the main thread's
+ongoing work; the other wants to keep working on the main thread exactly as it was,
+unaffected by whatever the experimental attempt does.
+
+A) `context: fork` for the experimental refactor, branching an isolated copy of the
+   current context to explore in without affecting the main thread, which continues
+   independently.
+B) Session resume for the experimental refactor, since resuming from a saved state is
+   the correct way to create an isolated branch for risky exploratory work.
+C) Both engineers should work in the exact same unforked session, since Claude Code
+   sessions are inherently safe for concurrent divergent editing without any isolation
+   mechanism.
+D) `context: fork` for the main thread instead of the experimental work, since the
+   thread that should stay unaffected is the one that needs to be forked away from
+   risk.
+
+### Q1.6 · Agent Construction with Claude
+A retailer expects extreme, unpredictable traffic spikes during a small number of peak
+sales events each year, with normal traffic the rest of the time. They have no desire
+to provision and manage infrastructure sized for peak load year-round, and want to add
+or reduce capacity for an agent-powered shopping assistant with minimal lead time.
+
+A) A self-hosted deployment sized for peak load year-round, since having dedicated
+   infrastructure always available is the safest way to guarantee capacity during a
+   spike.
+B) An Anthropic-hosted managed deployment, which lets the team absorb elastic,
+   unpredictable demand without provisioning and maintaining infrastructure sized for
+   rare peak events — trading some low-level infrastructure control for not having to
+   manage that capacity planning themselves.
+C) A self-hosted deployment is required regardless of traffic pattern, since managed
+   deployments cannot handle any variability in request volume.
+D) Neither deployment model can handle unpredictable spiky traffic; this scenario
+   requires a custom-built infrastructure layer outside either standard option.
+
+### Q1.7 · Agent Patterns and Frameworks
+A multi-step data-processing agent must produce strictly validated, typed outputs at
+every intermediate step, since a malformed intermediate value would silently corrupt
+everything downstream. A separate, much simpler agent just answers one-off questions
+with free-form text and has no structured intermediate steps at all.
+
+A) A framework emphasizing strict typed validation at each step (e.g., a
+   typed-output-oriented framework) is a reasonable fit for the data-processing
+   agent's genuine correctness need; imposing that same structure on the simple
+   free-form Q&A agent would add validation machinery the task doesn't need.
+B) Both agents should use the same typed-validation framework uniformly, since strict
+   validation is never a disadvantage regardless of a task's actual structure.
+C) Neither agent benefits from any framework, since typed validation is something only
+   custom-written code can provide.
+D) The simple Q&A agent needs the typed framework more, since free-form text output is
+   inherently less reliable than structured intermediate steps and needs more
+   validation, not less.
+
+### Q1.8 · Agent Patterns and Frameworks
+A support bot handles an escalated case that can remain open for several days,
+sometimes spanning multiple separate conversations as different agents or the same
+customer check back in. The team currently keeps case details only in the active
+session's context, so anything relevant is lost the moment that particular session
+ends.
+
+A) This is fine, since case-relevant details naturally belong in session context and
+   don't need any dedicated persistence mechanism.
+B) Case details should be persisted in memory keyed to the case/ticket itself (not just
+   the session or even the user), and loaded into context whenever any session —
+   regardless of which conversation or which specific agent — picks the case back up.
+C) Case details should be persisted keyed to the specific user only, since a case is
+   always associated with exactly one person regardless of how many separate
+   conversations touch it.
+D) Increasing the context window is the correct fix, since a large enough window would
+   let the original session simply stay open indefinitely across days.
+
+### Q1.9 · Agent Patterns and Frameworks *(select TWO)*
+Which two statements accurately describe genuine tradeoffs of a manager/supervisor
+multi-agent pattern, as opposed to a single generalist agent?
+
+A) A supervisor pattern can improve reliability on genuinely multi-domain requests by
+   routing each sub-task to a specialist suited for it, rather than asking one
+   generalist to handle every domain equally well.
+B) A supervisor pattern eliminates coordination overhead entirely, since delegating to
+   specialists is always cheaper and faster than handling a request in a single agent.
+C) A supervisor pattern introduces real coordination costs — decomposing the request,
+   routing correctly, and aggregating results coherently — that a single-agent
+   approach doesn't have to manage at all.
+D) A supervisor pattern guarantees that no request can ever be misrouted, since
+   specialists are inherently more accurate than generalists at every task.
+E) A supervisor pattern's aggregation step adds a place where individually-correct
+   specialist outputs can still be combined incorrectly, a failure mode a single-agent
+   approach doesn't have in the same form.
+
+---
+
+## Domain 2: Applications and Integration (Q2.1–Q2.19)
+
+### Q2.1 · Understanding Requirements
+A requirements document for a financial-services assistant states: "the system shall
+calculate a customer's loan eligibility score." A separate line states: "the system
+must maintain 99.95% uptime, including automatic failover to a secondary region within
+60 seconds of a primary region outage."
+
+A) Both are functional requirements, since both describe capabilities the system must
+   deliver.
+B) The first is a functional requirement (a specific calculation behavior); the second
+   is an infrastructure requirement — a disaster-recovery/availability constraint the
+   implementation must satisfy regardless of which specific feature is running.
+C) The second is a business goal rather than a requirement, since uptime targets
+   ultimately serve customer trust and revenue.
+D) Both are infrastructure requirements, since both are ultimately implemented as part
+   of the same deployed system.
+
+### Q2.2 · Understanding Requirements
+A stakeholder's requirement reads: "the assistant should respond quickly and feel
+snappy to users." An engineer proceeds to build against this requirement as written,
+without seeking further clarification.
+
+A) This is an adequately specified requirement and can be built against directly,
+   since "quickly" and "snappy" convey enough information to guide implementation
+   decisions.
+B) This requirement is not yet testable as written — it lacks a measurable target
+   (e.g., a specific latency threshold at a specific percentile); a well-formed
+   requirement should be clarified into something concrete and verifiable before
+   implementation proceeds against it.
+C) This should be treated as an infrastructure requirement exactly as worded, without
+   further refinement, since perceived speed is inherently a non-functional concern.
+D) This requirement should be discarded entirely, since subjective language can never
+   be turned into anything actionable.
+
+### Q2.3 · Systems Life Cycle
+A team has a finished technical design for a new agent — architecture, tool set, and
+model selection all decided — and is now writing the actual code: implementing tools,
+wiring up the agentic loop, and writing unit tests for individual components as they're
+built.
+
+A) This is system design, since writing code is simply the mechanical execution of
+   decisions already made during design.
+B) This is implementation — translating an already-completed design into working code,
+   including the component-level tests written alongside it, is the defining activity
+   of this phase, distinct from the design that preceded it.
+C) This is requirements analysis, since unit tests are technically a form of
+   specifying expected behavior.
+D) This is operations and maintenance, since any code-writing activity that happens
+   after initial requirements gathering falls under ongoing maintenance.
+
+### Q2.4 · Systems Life Cycle
+Before launch, a team runs its full eval suite against the finished implementation,
+conducts user acceptance testing with a pilot group, and fixes issues found before the
+system goes live to all users — no code has yet been exposed to real production
+traffic.
+
+A) This is operations and maintenance, since evaluating a system's behavior is
+   inherently an ongoing, post-launch activity regardless of whether real users have
+   seen it yet.
+B) This is testing and validation — verifying the completed implementation against
+   requirements and expected behavior before committing to a live release is a
+   distinct life-cycle activity that comes after implementation and before the system
+   is exposed to production traffic.
+C) This is implementation, since fixing issues found during evaluation is technically
+   still writing code.
+D) This step is unnecessary and can be skipped whenever the eval suite was already run
+   once during development.
+
+### Q2.5 · Claude API Mechanics
+A document-analysis feature needs to compare four different scanned pages of the same
+multi-page form within a single request, cross-referencing values that appear on
+different pages, and the team is estimating the token cost of supplying all four as
+image content blocks in one message.
+
+A) Multiple images can be supplied as multiple image content blocks within a single
+   message; each image contributes to the input token count based on its
+   resolution/size, so the team should account for all four images' token contribution
+   together when estimating cost for the combined request, not just one representative
+   image.
+B) Only one image can be supplied per API request, so the four pages must be submitted
+   as four entirely separate requests with no ability to cross-reference values across
+   them in a single call.
+C) Images don't count toward the token budget at all, so the number of images supplied
+   has no bearing on cost or context window usage.
+D) Supplying more than one image in a single request is only possible if extended
+   thinking is disabled for that request.
+
+### Q2.6 · Claude API Mechanics
+A team enables extended thinking on a reasoning-heavy workload and is surprised to see
+their token-based billing increase substantially beyond what they estimated from only
+the visible final answer's length, since they assumed billing was based solely on the
+visible response text.
+
+A) This indicates a billing error, since only the visible final answer should ever
+   count toward token-based costs regardless of any internal reasoning the model
+   performs.
+B) Thinking tokens are counted as part of the billed output, in addition to the final
+   visible response — a workload that generates substantial internal reasoning before
+   answering will show correspondingly higher output token counts than the visible
+   answer length alone would suggest.
+C) Extended thinking is always billed as a fixed flat fee per request regardless of how
+   much reasoning is actually generated internally.
+D) Thinking tokens only count toward cost when `effort` is explicitly set to its
+   maximum level; at any lower setting, thinking is entirely free.
+
+### Q2.7 · Claude API Mechanics
+A streaming integration needs to execute a tool call as soon as the model decides to
+make one, but the current implementation attempts to parse the `tool_use` block's
+input JSON incrementally as partial fragments arrive via streaming events,
+occasionally executing the tool against incomplete, invalid JSON before the block has
+actually finished streaming.
+
+A) This is expected and unavoidable; tool calls simply cannot be used reliably together
+   with streaming under any implementation.
+B) The tool's input JSON should be fully assembled from the accumulated streaming
+   events (i.e., wait until the relevant content block is complete) before being
+   parsed and executed — parsing or acting on a `tool_use` block's input before it has
+   finished streaming risks operating on incomplete, invalid data.
+C) The fix is to disable streaming entirely for any request that might result in a
+   tool call, foregoing the responsiveness benefits of streaming for all tool-using
+   requests.
+D) The fix is to increase `max_tokens`, since incomplete JSON is typically a symptom of
+   an output-length limit being hit rather than of reading a block before it's
+   finished streaming.
+
+### Q2.8 · Claude API Mechanics
+A team wants Claude to reliably maintain a persistent persona and behavioral rules
+across an entire conversation and puts those instructions into the first message in
+the `messages` array with `role: "user"`, reasoning "the API reads the whole array
+anyway, so placement inside `messages` versus the dedicated `system` parameter
+shouldn't matter."
+
+A) Placement matters: the dedicated `system` parameter is specifically designed to
+   carry persistent, session-level instructions with a distinct role in how the model
+   treats them, separate from the turn-by-turn conversational exchange the `messages`
+   array represents — using a user-role message for this purpose is a different, less
+   appropriate mechanism than the one built for it.
+B) There is no meaningful difference; a user-role message containing persona
+   instructions is functionally identical to the same content passed via the `system`
+   parameter in every respect.
+C) The `system` parameter is deprecated in favor of putting all instructions inside the
+   first user message, so the team's current approach is actually the recommended one.
+D) The `messages` array cannot contain a `role: "user"` entry as the very first message
+   under any circumstances, so this configuration would be rejected outright by the
+   API.
+
+### Q2.9 · Software Engineering Foundations
+A `create_support_ticket` tool call times out on the client side after being sent, and
+the client's retry logic resubmits the identical request, unaware that the original
+call may have already succeeded server-side — resulting in duplicate tickets being
+created for the same issue on a meaningful fraction of timeouts.
+
+A) This is acceptable since duplicate tickets are a minor cosmetic issue that doesn't
+   warrant additional engineering effort to prevent.
+B) The retry should be made safe via an idempotency mechanism (e.g., an idempotency key
+   tied to the original request) so a retried call after a timeout is recognized as the
+   same operation rather than creating a second ticket, rather than assuming every
+   retry represents a request that never went through.
+C) The fix is to remove retry logic entirely, accepting that any timed-out ticket
+   creation is simply lost and must be manually re-created by the user.
+D) The fix is to increase the client-side timeout duration, which fully eliminates the
+   possibility of a timeout occurring under any load condition.
+
+### Q2.10 · Software Engineering Foundations
+A production Claude-integration service logs only "request failed" with no request ID,
+no prompt reference, no model version, and no error detail, making it extremely
+difficult to trace a specific user's reported issue back to what actually happened in
+a given call.
+
+A) This level of logging is sufficient, since the goal of logging is simply to record
+   that a failure category occurred, not to enable tracing any specific instance of it.
+B) Structured logging — capturing enough context per call (request/trace ID, model
+   version, relevant prompt/response identifiers, and specific error detail) to
+   reconstruct what happened for a given failure — is foundational to being able to
+   debug production issues at all; sparse, unstructured logs make root-causing a
+   specific incident far harder than it needs to be.
+C) The correct fix is to upgrade to a larger, more capable model, since better model
+   reasoning would reduce the underlying failure rate and therefore the need for
+   detailed logs.
+D) Logging detail is irrelevant as long as the team has an eval suite, since evals
+   catch every failure mode logs would otherwise reveal.
+
+### Q2.11 · Software Engineering Foundations
+A team's test suite for a Claude-integrated feature consists entirely of end-to-end
+integration tests that make real API calls, take minutes to run, and cost real money
+on every CI run. There are no unit tests for the surrounding parsing, validation, or
+business logic that doesn't actually need a live model call to verify.
+
+A) This is optimal, since only end-to-end tests can meaningfully verify a Claude
+   integration, making unit tests unnecessary regardless of what they'd cover.
+B) A more balanced test strategy — fast, cheap unit tests for logic that doesn't need
+   a live model call (parsing, validation, schema checks), reserving slower, costlier
+   end-to-end tests for what genuinely requires exercising the real integration — would
+   catch most regressions faster and cheaper than relying on integration tests alone.
+C) The fix is to remove all integration tests and rely exclusively on unit tests, since
+   unit tests are strictly better for any codebase.
+D) Test strategy has no bearing on a Claude-integrated feature specifically, since
+   testing practices for LLM-integrated code are identical to testing practices for
+   any other code with no adjustments needed.
+
+### Q2.12 · Software Engineering Foundations
+A service pins its application dependencies but leaves the Anthropic SDK version
+unconstrained ("always install latest"), reasoning that "staying current on the SDK is
+always beneficial." A routine deploy pulls in a new SDK major version that changes a
+default parameter behavior, silently altering production output.
+
+A) This is expected and desirable, since SDK updates should always be adopted
+   immediately and automatically regardless of what they change.
+B) The SDK should be version-pinned like other dependencies, with upgrades treated as
+   deliberate, tested changes rather than something that happens automatically on a
+   routine deploy — an unconstrained "latest" dependency can introduce breaking
+   behavior changes with no warning, just as an unconstrained "latest" model alias can.
+C) This is unrelated to dependency management, since SDK behavior changes are
+   considered model behavior changes and belong entirely under model version pinning
+   instead.
+D) The correct fix is to stop using the official SDK entirely and hand-roll HTTP calls,
+   since only custom code can be fully protected from unannounced changes.
+
+### Q2.13 · Claude Application Design
+A team maintains one very long, undifferentiated system prompt covering persona,
+tone, tool usage instructions, compliance rules, and formatting requirements — one
+continuous block of text with no internal structure — and finds that updating any one
+concern (e.g., just the compliance rules) requires carefully re-reading the entire
+block to make sure the edit doesn't conflict with something else in it.
+
+A) This is unavoidable, since a system prompt is fundamentally limited to being one
+   undifferentiated block of text regardless of how it's authored or maintained.
+B) Structuring and modularizing the prompt — clearly delineated sections, or separately
+   maintained and composed fragments for persona, tools, compliance, and format — makes
+   isolated updates safer and easier to reason about than one large undifferentiated
+   block, even though the final assembled prompt sent to the model can still be one
+   piece of text.
+C) The fix is to remove all instructions except persona and tone, since compliance
+   rules and formatting requirements don't belong in a system prompt at all.
+D) The fix is to split the single system prompt into five entirely separate API calls,
+   one per concern, since the API only accepts one instruction category per request.
+
+### Q2.14 · Claude Application Design
+When a Claude call fails or times out, a customer-facing application currently
+surfaces the raw exception message and stack trace directly in the UI, verbatim,
+including internal service names and file paths.
+
+A) This is acceptable, since showing the exact underlying error is always more helpful
+   to the end user than any alternative.
+B) User-facing error handling should distinguish what a customer needs to see (a clear,
+   actionable, non-technical message, possibly with a retry option) from what
+   engineering needs for debugging (the full internal detail, which belongs in logs
+   and internal monitoring, not the customer-facing surface).
+C) The fix is to show no error indication at all when a call fails, leaving the UI in
+   whatever state it was in before the failed call, since any error message risks
+   confusing the user.
+D) Raw internal errors are only a concern for external customers; showing the same
+   detail to internal, non-customer-facing users carries no distinct risk worth
+   considering.
+
+### Q2.15 · Claude Application Design
+A newly launched Claude-powered feature has no per-user request limits at the
+application layer — any single user (or a compromised/scripted account) can submit
+unlimited requests, and a runaway client-side bug in one user's session recently drove
+the day's entire Claude spend before anyone noticed.
+
+A) This is acceptable, since account-level trust should be sufficient without any
+   additional application-layer controls.
+B) Per-user (or per-account) rate limiting and quotas at the application layer are a
+   reasonable design control here — bounding how much any single user or client can
+   consume protects against both abuse and accidental runaway usage, independent of
+   whatever limits exist at the API-account level overall.
+C) The fix is exclusively to lower the model tier for all users, since a cheaper model
+   makes any volume of requests proportionally less costly regardless of actual usage
+   patterns.
+D) Rate limiting is solely a security concern and has no legitimate place in
+   application design decisions about cost and reliability.
+
+### Q2.16 · Claude Application Design
+A team is deciding whether a chat application should be fully stateless server-side
+(the client resends the entire relevant conversation history with every request) or
+should maintain session state server-side (the server tracks conversation history
+and the client only sends the latest message plus a session identifier).
+
+A) The stateless, client-resends-everything approach is always correct regardless of
+   application needs, since the underlying Messages API itself is stateless.
+B) Either design can be appropriate depending on the application's needs: a
+   server-side session adds server complexity (state storage, session lifecycle) but
+   simplifies the client and can enable features like cross-device continuity; a
+   fully client-driven approach keeps the server simple but pushes history management
+   and payload size onto the client — the API's own statelessness doesn't dictate which
+   the application layer should choose.
+C) Server-side session state is impossible to build on top of a stateless API, so the
+   client-resends-everything approach is the only option that can work at all.
+D) This decision only affects visual design, not application architecture, so either
+   choice is functionally interchangeable from an engineering standpoint.
+
+### Q2.17 · Claude Application Design
+A production feature currently has no fallback behavior: if the Claude API call fails
+or times out for any reason, the user simply sees a blank error page with no
+alternative path forward, even though a slightly stale cached response or a
+simpler rule-based fallback could often still provide a reasonable answer.
+
+A) This is acceptable, since any failure of the primary call should always be
+   surfaced as a hard failure to the user rather than papering over it with a
+   fallback.
+B) Designing for graceful degradation — a cached or simplified fallback response when
+   the primary call fails, rather than a hard failure with no alternative — improves
+   the experience for the subset of failures where a reasonable fallback is genuinely
+   available, without pretending every failure is silently fine.
+C) The fix is exclusively to retry the exact same failing call indefinitely until it
+   eventually succeeds, since retries alone are always sufficient to avoid ever
+   needing a fallback path.
+D) Fallback behavior is unnecessary as long as the underlying API has high uptime,
+   since a sufficiently reliable API makes any client-side fallback strategy
+   redundant.
+
+### Q2.18 · Configuration Management
+A team wants to change a high-traffic production prompt and is deciding between
+flipping 100% of traffic to the new version immediately after passing the eval suite,
+versus rolling it out to a small percentage of traffic first and expanding gradually
+while monitoring real production outcomes.
+
+A) Flipping 100% of traffic immediately is preferable whenever the eval suite passes,
+   since a passing eval suite is a complete guarantee that production behavior will
+   match expectations at full traffic.
+B) A staged rollout (small percentage first, expanding as real production signals
+   confirm the change is behaving as expected) reduces the blast radius of an issue an
+   eval suite didn't happen to catch, compared to an immediate full cutover — the eval
+   suite and a staged rollout are complementary safeguards, not substitutes for each
+   other.
+C) Staged rollouts are unnecessary for prompt changes specifically, since prompt
+   changes carry no more production risk than any other configuration change and can
+   always be cut over instantly.
+D) The correct approach is to never roll out any prompt change to production traffic
+   at all, testing exclusively in a non-production environment indefinitely.
+
+### Q2.19 · Configuration Management *(select TWO)*
+Which two of the following are genuine configuration-management practices, as
+distinct from good ideas that don't actually belong under that heading?
+
+A) Maintain environment parity (dev/staging/production configured as consistently as
+   practical) so a change validated in staging is a meaningful signal about how it
+   will behave in production.
+B) Use feature flags or similar mechanisms to control which prompt/model variant is
+   active per environment or per rollout stage, rather than relying on hand-edited
+   config with no record of what's currently live where.
+C) Store production secrets directly in the same repository as the versioned prompt
+   fragments, since keeping everything in one place simplifies configuration tracking.
+D) Rely on each engineer's personal recollection of the last production change, since
+   documentation inevitably goes stale and isn't worth the maintenance overhead.
+E) Skip having any rollback plan for configuration changes, since a well-tested change
+   should never need to be rolled back in practice.
+
+---
+
+## Domain 3: Claude Code (Q3.1–Q3.2)
+
+### Q3.1 · Claude Code Operation
+A monorepo has a `services/payments/` subdirectory with stricter conventions
+(mandatory two-person review notes, no direct legacy SDK calls) than the rest of the
+repo. These rules currently live as one more paragraph in the repo-root `CLAUDE.md`,
+and engineers report Claude Code frequently doesn't apply them consistently when
+working purely inside `services/payments/`.
+
+A) Move the `services/payments/`-specific rules into their own `CLAUDE.md` (or
+   `.claude/rules/` file) located inside `services/payments/` itself, so it loads
+   specifically when work happens in that directory rather than competing for
+   attention as one paragraph in a repo-wide file.
+B) Reword the root `CLAUDE.md` paragraph to be more emphatic about the
+   payments-specific rules, so the model weighs it more heavily regardless of which
+   directory is actually being worked in.
+C) Convert the payments conventions into a custom slash command the engineer must
+   remember to manually invoke every time they touch a file in that directory.
+D) The inconsistency is unrelated to configuration scope and can only be fixed by
+   upgrading to a larger model tier.
+
+### Q3.2 · Claude Code Operation
+A team wants a specific formatter command to run automatically after every file edit
+Claude Code makes in a given repo, with no dependency on the model remembering to run
+it or mentioning it in its summary.
+
+A) Add a general reminder in `CLAUDE.md` asking Claude to "always run the formatter
+   after editing a file," relying on the model to follow the instruction consistently.
+B) Configure a hook (e.g., a `PostToolUse` hook tied to file-edit events) that runs the
+   formatter deterministically after every edit, independent of whether the model
+   remembers or chooses to mention doing so.
+C) Ask the engineer to manually run the formatter after every session, since Claude
+   Code has no mechanism for triggering external commands automatically.
+D) Rename the formatter binary to something Claude is more likely to reference in its
+   own summaries, increasing the odds it gets invoked.
+
+---
+
+## Domain 4: Eval, Testing, and Debugging (Q4.1)
+
+### Q4.1 · Debugging and Error Handling
+A team makes a prompt change intended to reduce a specific class of formatting error.
+They have no eval suite or baseline measurement from before the change, so a week
+later, when someone asks "did that change actually help," nobody can answer with
+anything more concrete than a general impression that things "feel about the same."
+
+A) This is an acceptable way to work, since prompt changes are inherently
+   impossible to measure with any more rigor than general impression.
+B) Establishing a baseline eval (a fixed, representative set of test cases, scored
+   consistently) before making a change is what makes "did this help" answerable
+   afterward — without a baseline, there's no way to distinguish a real improvement, a
+   real regression, and no change at all.
+C) The correct fix now is exclusively to analyze traces of recent failures to diagnose
+   the issue, since trace analysis alone can substitute for having had a baseline in
+   the first place.
+D) Since the change was intended to reduce a specific class of error, its intent alone
+   is sufficient evidence that it worked, regardless of any measurement.
+
+---
+
+## Domain 5: Model Selection and Optimization (Q5.1–Q5.10)
+
+### Q5.1 · LLM Fundamentals
+A team conflates `temperature` and `top_p`, treating them as two names for the exact
+same sampling control, and sets both to unusual extreme values simultaneously assuming
+this doubles the effect of "more randomness."
+
+A) `temperature` and `top_p` are literally identical mechanisms, so setting both
+   simultaneously is the correct way to intensify the same single effect.
+B) `temperature` and `top_p` are distinct sampling controls that interact rather than
+   duplicate each other; the team should understand what each one actually does
+   before tuning both simultaneously, rather than assuming stacking them straightforwardly
+   compounds "more randomness" in a simple, additive way.
+C) `top_p` is deprecated in current models and has no effect regardless of its value,
+   so only `temperature` needs to be considered.
+D) Combining any two sampling parameters at extreme values is always safe and
+   predictable, since sampling parameters never interact with each other.
+
+### Q5.2 · LLM Fundamentals
+A team builds an application assuming every Claude model tier shares an identical
+200,000-token context window, and is surprised when a request that fit comfortably on
+one tier is rejected as too large on a different, smaller-context tier they later
+switch to for cost reasons.
+
+A) This is a documentation error on Anthropic's part, since context window size should
+   be identical across all tiers by default.
+B) Context window size can differ across model families and tiers, so an application
+   that assumes a single fixed window size regardless of which model it's actually
+   calling should verify the specific model's documented context window rather than
+   carrying an assumption over from a different tier.
+C) Context window size is determined solely by the API key's account tier, not by
+   which specific model is called, so switching models should never have affected
+   this.
+D) The rejection must indicate the request also exceeded `max_tokens`, since context
+   window size cannot itself be the actual cause of a request being rejected as too
+   large.
+
+### Q5.3 · LLM Fundamentals
+A multi-shot prompt includes five examples for a classification task, with the four
+easiest, most typical examples listed first and the one genuinely ambiguous edge-case
+example listed last, right before the actual input to classify. The model
+under-classifies ambiguous real inputs into the easy, typical categories.
+
+A) Example order has no bearing on how a multi-shot prompt is interpreted, so this
+   pattern couldn't be contributing to the observed under-classification.
+B) Reconsidering how examples are ordered and balanced (e.g., ensuring the ambiguous
+   case isn't the sole edge-case example, and that a few clear examples don't overwhelm
+   the prompt's implicit signal about how common each category actually is) is worth
+   testing here, since example composition and positioning can shape what a model
+   infers about the task's typical distribution.
+C) The fix is to remove all five examples and rely on zero-shot prompting exclusively,
+   since any multi-shot prompt with more than three examples is inherently unreliable.
+D) The fix is to increase the number of easy, typical examples even further, since more
+   examples of the common case should reduce ambiguity for the model.
+
+### Q5.4 · Technical Fundamentals
+A service catches every exception from Claude API calls with one broad
+`except Exception` block, logging a generic "something went wrong" message regardless
+of whether the actual cause was a rate limit, an authentication failure, or a
+malformed request — making it impossible to apply the right recovery strategy per
+error type without manually inspecting each raw log.
+
+A) One broad exception handler is sufficient for any integration, since all failures
+   ultimately require the same generic response of logging and retrying.
+B) Catching and handling the SDK's typed error classes distinctly (e.g., a rate-limit
+   error, an authentication error, a malformed-request error) lets the service apply
+   the right recovery strategy per error type — retry-with-backoff for one, alerting
+   for another, a code fix for a third — instead of collapsing genuinely different
+   failures into one generic response.
+C) The fix is to stop using the SDK's exception types entirely and parse raw HTTP
+   status codes by hand, since SDK exceptions provide no more information than a
+   status code would.
+D) Exception handling granularity has no bearing on recovery strategy, since recovery
+   strategy should be identical regardless of what specifically caused a given
+   failure.
+
+### Q5.5 · Technical Fundamentals
+A team builds its own custom thread-pool-based concurrency manager to parallelize API
+calls, duplicating rate-limit-aware throttling and connection-pooling logic that an
+official SDK's built-in async client and concurrency controls already provide,
+reasoning "our custom logic gives us more control."
+
+A) Custom concurrency logic is always preferable to whatever an SDK provides, since
+   full control is inherently more valuable than convenience regardless of what's
+   already available.
+B) Where the official SDK already provides concurrency controls suited to the actual
+   need (bounded parallelism, rate-limit awareness), re-implementing equivalent logic
+   by hand typically costs more to build and maintain correctly than it's worth —
+   custom concurrency logic earns its cost when the SDK's built-in controls genuinely
+   don't fit the specific need.
+C) SDKs never provide any concurrency-related functionality, so building custom
+   concurrency logic is the only way to parallelize calls at all.
+D) The choice between custom and SDK-provided concurrency logic has no bearing on
+   correctness, only on code length.
+
+### Q5.6 · Technical Fundamentals
+A client needs Claude's response streamed to the browser as it's generated, with no
+need for the browser to push anything back to the server mid-response beyond the
+original request. An engineer proposes a full bidirectional websocket connection for
+this specific need.
+
+A) A websocket is the only mechanism capable of delivering streamed content to a
+   browser under any circumstances, so it's the correct and only choice here
+   regardless of directionality needs.
+B) For a case needing only server-to-client streaming with no mid-response
+   client-to-server push, a simpler one-directional streaming mechanism (such as
+   server-sent events) fits the actual need without the added complexity of a full
+   bidirectional websocket connection, which earns its cost when genuine
+   bidirectional, mid-stream communication is actually required.
+C) Websockets and server-sent events are functionally identical in every respect, so
+   the choice between them has no practical consequence for this or any other use
+   case.
+D) Streaming to a browser is impossible without a websocket connection, since HTTP
+   responses cannot be delivered incrementally under any other mechanism.
+
+### Q5.7 · Model Selection and Tradeoffs
+A high-volume classification workload sends every request to the most capable (and
+most expensive) model tier, even though the large majority of inputs are
+straightforward and only a small fraction are genuinely ambiguous enough to benefit
+from the strongest available reasoning.
+
+A) This is the correct approach, since customer-facing accuracy always justifies using
+   the most capable tier for every request regardless of how straightforward most
+   inputs actually are.
+B) A cascading approach — routing the bulk of straightforward inputs to a faster,
+   cheaper tier and escalating only the inputs a lighter-weight check flags as
+   genuinely ambiguous to a stronger tier — can meaningfully reduce cost while
+   preserving accuracy where it actually matters, rather than paying top-tier cost
+   uniformly regardless of input difficulty.
+C) The correct approach is to route every request to the cheapest tier uniformly,
+   since cost should always be minimized regardless of any accuracy tradeoff.
+D) Model cascading is never a valid strategy, since mixing tiers within one workload
+   always produces inconsistent results too unpredictable to be worth the cost
+   savings.
+
+### Q5.8 · Model Selection and Tradeoffs
+A team wants to decide between two model tiers for a live production workload and is
+choosing between trusting only offline benchmark comparisons versus running a live
+production A/B test that splits real traffic between the two tiers and measures actual
+outcomes (user satisfaction, task success, cost) before fully committing to one.
+
+A) Offline benchmark comparisons alone are always sufficient for this decision, since
+   published benchmark scores are guaranteed to predict real production outcomes for
+   any given application.
+B) A live A/B test on real production traffic captures how each tier actually performs
+   on the application's specific distribution of real inputs and real user outcomes,
+   which offline benchmarks (run on a different, generic distribution) can't fully
+   substitute for — the two approaches are complementary, not interchangeable.
+C) A/B testing model tiers in production is never advisable under any circumstances,
+   since any live experiment on production traffic is inherently too risky to justify.
+D) The choice between tiers should be made randomly, since neither offline benchmarks
+   nor live A/B testing meaningfully differ in what they reveal about tier performance.
+
+### Q5.9 · Cost and Token Management
+A low-volume internal tool makes only a handful of requests per day, each with a large
+static system prompt. The team enables prompt caching expecting significant savings,
+but per-request cost barely changes, since the small number of daily requests rarely
+reuses the cache before it expires, while a similarly-large-prompt, high-volume
+customer-facing feature elsewhere in the company sees caching deliver its expected
+savings.
+
+A) Caching should deliver identical savings regardless of request volume, so the
+   low-volume tool's result must indicate a configuration error rather than a genuine
+   difference in reuse pattern.
+B) Caching's benefit is tied to how often the cached prefix is actually reused before
+   it expires; a low-volume workload that rarely re-hits the cache before expiry won't
+   realize the same savings a high-volume, frequently-reused workload does — for the
+   low-volume tool, other levers (trimming the static prompt, a smaller model tier)
+   may matter more than caching.
+C) The fix for the low-volume tool is to disable caching and switch exclusively to a
+   larger model tier, since caching provides no benefit whatsoever for internal tools
+   specifically.
+D) Caching savings depend only on prompt size, not on how frequently requests occur, so
+   request volume should have had no bearing on the outcome observed here.
+
+### Q5.10 · LLM Fundamentals
+A team assumes adaptive thinking and the `effort` parameter are only relevant to
+tasks the team considers "hard" and manually disables thinking for every request they
+'ve judged as simple in advance, without ever letting the model itself assess
+per-request whether deeper reasoning would help a specific input within that
+"simple" category.
+
+A) This is optimal, since a human's upfront judgment of task difficulty is always more
+   accurate than letting the model assess its own need for reasoning on a per-request
+   basis.
+B) Manually pre-judging every request's difficulty and disabling thinking uniformly for
+   an entire category removes exactly the benefit adaptive thinking is meant to
+   provide — letting the model decide, per request, whether a given input (even
+   within a generally "simple" category) actually warrants deeper reasoning, rather
+   than a blanket human judgment applied to the whole category regardless of
+   per-input variation.
+C) Adaptive thinking cannot be used selectively at all; it must be either fully enabled
+   or fully disabled for an entire application, with no per-request nuance possible.
+D) The `effort` parameter has no relationship to adaptive thinking and instead governs
+   an unrelated aspect of the request, such as `max_tokens`.
+
+---
+
+## Domain 6: Prompt and Context Engineering (Q6.1–Q6.7)
+
+### Q6.1 · Context Engineering
+A support agent has access to a large internal knowledge base. The current design
+preloads the entire knowledge base into context at the start of every conversation,
+regardless of what the actual question turns out to be, crowding out room for the
+conversation itself on lengthy interactions.
+
+A) Preloading everything up front is the safest design, since it guarantees the
+   relevant content is always present regardless of what's eventually asked.
+B) A just-in-time context pattern — retrieving only the specific knowledge-base
+   content relevant to the actual question, at the point it's needed, rather than
+   preloading the entire base regardless of relevance — uses context budget far more
+   efficiently for a knowledge base too large to fit comfortably alongside a lengthy
+   conversation.
+C) The fix is to reduce the size of the knowledge base itself so it always fits
+   alongside any conversation length, discarding content instead of retrieving it
+   selectively.
+D) Preloading versus just-in-time retrieval has no bearing on context budget, since
+   context window limits only apply to the conversation itself, not to any content
+   supplied at the start of a session.
+
+### Q6.2 · Context Engineering
+A team's harness appends every tool result directly into the system prompt so it
+"stays available," rather than passing it as part of the ordinary turn-by-turn
+message history, resulting in a system prompt that grows across a session and a
+distinction between "standing instructions" and "this turn's tool output" that has
+effectively disappeared.
+
+A) This is a reasonable design, since anything added to the system prompt is
+   automatically prioritized more highly by the model regardless of its actual nature.
+B) Tool results are turn-specific data and belong in the conversational message
+   history, not folded permanently into the system prompt; conflating standing,
+   session-level instructions with turn-specific data undermines the distinct roles
+   each is meant to play and makes the system prompt an ever-growing, undifferentiated
+   blob.
+C) The fix is to stop using tool results in context at all, since any tool output that
+   isn't in the system prompt is inaccessible to the model.
+D) System prompt content and message-history content are functionally identical in
+   every respect, so where a given piece of content is placed has no consequence.
+
+### Q6.3 · Prompt Engineering
+A team adds "act as a world-renowned expert in this field" role-framing to a prompt
+for a fully deterministic, rule-based classification task (mapping an exact input
+string to one of three fixed categories via clear, unambiguous criteria), expecting
+the framing to meaningfully improve accuracy.
+
+A) Role-framing meaningfully improves any task regardless of its nature, so applying
+   it here is a reliable way to improve classification accuracy.
+B) Role-framing tends to help most on tasks that benefit from a particular
+   perspective, tone, or style of reasoning; a fully deterministic, criteria-based
+   classification task doesn't have that kind of room for a persona to add value, so
+   the framing here is more likely to be inert noise than a meaningful accuracy lever
+   — clear criteria and examples are what actually drive performance on this kind of
+   task.
+C) Role-framing should never be used under any circumstances, since it provides no
+   benefit for any task type.
+D) The fix is to combine role-framing with a significantly higher temperature, since
+   the two techniques compound each other's effectiveness on any task.
+
+### Q6.4 · Prompt Engineering
+An application builds prompts by directly string-concatenating raw user-supplied
+values (name, order number, freeform comment) into a hand-written prompt template
+with no structured variable substitution or escaping, making it easy for an unusual
+user-supplied value to accidentally break the template's intended structure or blend
+into the surrounding instructions.
+
+A) This is fine as long as the model is generally capable, since a capable model will
+   always correctly parse the intended structure regardless of how the prompt is
+   assembled.
+B) Using structured, well-defined variable substitution (with clear boundaries around
+   inserted values) rather than ad hoc string concatenation reduces the risk that an
+   unusual user-supplied value distorts the prompt's intended structure or gets
+   confused with the surrounding instructions — a discipline related to, but distinct
+   from, sanitizing content specifically to prevent instruction-following on embedded
+   text.
+C) The fix is to reject any user-supplied value containing punctuation, since
+   punctuation is the only category of input that could ever disrupt a template.
+D) Prompt template design has no bearing on reliability, since any two prompts
+   containing the same underlying information will always produce equivalent results
+   regardless of how they're assembled.
+
+### Q6.5 · Prompt Engineering
+A team manually instructs the model with "think through this step by step before
+answering" in the prompt text for a workload running on a model generation that
+supports adaptive thinking, reasoning that explicit chain-of-thought instructions and
+the built-in thinking feature are two separate techniques that should both always be
+used together for every request regardless of task.
+
+A) Explicit "think step by step" prompt instructions and the model's own adaptive
+   thinking are not simply additive; on a model generation where adaptive thinking is
+   available, letting the model decide when and how much to reason (optionally guided
+   by the `effort` parameter) is generally the more direct lever, while manual
+   chain-of-thought phrasing was more essential on models or contexts lacking that
+   capability — combining both by default on every request isn't automatically better
+   than using the mechanism actually suited to the situation.
+B) The two techniques are functionally identical and redundant in every case, so using
+   both together produces no different result than using either alone.
+C) Explicit chain-of-thought instructions should always be removed entirely once
+   adaptive thinking is available, since they become actively harmful to output
+   quality in every single case.
+D) Adaptive thinking replaces the need for well-structured prompts entirely, so prompt
+   quality no longer matters at all once thinking is enabled.
+
+### Q6.6 · Output Handling
+A pipeline needs a downstream system to receive one complete, valid JSON object from a
+tool call. The current implementation parses the streaming response as JSON fragments
+arrive incrementally, attempting to act on partial, syntactically incomplete JSON
+before the relevant content block has finished streaming, occasionally passing
+malformed data downstream.
+
+A) This is unavoidable, since JSON output can never be reliably combined with
+   streaming under any implementation approach.
+B) Buffer the streamed content until the relevant block signals completion, then parse
+   the fully assembled JSON as a single complete unit before passing it downstream —
+   acting on partial fragments trades a small latency saving for a real risk of
+   passing invalid, unusable data forward.
+C) The fix is to disable JSON output entirely and switch the tool to return plain text
+   instead, since plain text is inherently compatible with incremental parsing in a
+   way JSON never can be.
+D) The fix is to increase the model's `max_tokens`, since malformed partial JSON is
+   typically a symptom of an output-length limit rather than of parsing an
+   in-progress stream too early.
+
+### Q6.7 · Output Handling *(select TWO)*
+A research-summarization feature occasionally cites a source or quote that turns out,
+on inspection, not to accurately reflect what the actual source says. Staff currently
+take every cited claim at face value. Which two practices most directly reduce the
+risk of an inaccurate citation being trusted and acted on?
+
+A) Where feasible, link or surface the actual underlying source alongside the
+   citation so a reader can verify the specific claim against the original rather than
+   trusting the summary's representation of it on faith.
+B) Treat a citation's confident, specific-sounding presentation (a name, a quote, a
+   page reference) as no substitute for actually having verified it — specificity and
+   fluency are not evidence of accuracy.
+C) Increase the temperature so citations are phrased with more apparent uncertainty,
+   since varied phrasing itself signals which citations are trustworthy.
+D) Assume that because a citation includes a specific quote, quotes are inherently more
+   reliable than paraphrased claims and require no further verification.
+E) Add more few-shot examples of well-formatted, confident-sounding citations so future
+   citations look more polished and authoritative.
+
+---
+
+## Domain 7: Security and Safety (Q7.1–Q7.5)
+
+### Q7.1 · AI Application Security
+An agent has a `fetch_url` tool that retrieves the content of any URL supplied in
+freeform text, with no restriction on which destinations are reachable. A crafted
+input gets the agent to fetch an internal-only administrative endpoint that was never
+meant to be reachable from outside the internal network, using the agent's own network
+position as a bridge to reach it.
+
+A) This is expected and not a genuine risk, since the agent is only following a URL it
+   was given rather than accessing anything on its own initiative.
+B) This is a server-side request forgery-style risk: a tool that can fetch arbitrary,
+   caller-supplied destinations should have its reachable destinations scoped (an
+   allowlist of permitted domains/endpoints, or network-level restrictions) rather
+   than being able to reach anything the underlying network path allows, regardless of
+   whether the destination was ever intended to be reachable this way.
+C) The fix is exclusively to lower the model's temperature, since a lower temperature
+   would make the model less likely to comply with a crafted instruction to fetch an
+   unusual URL.
+D) The fix is to remove all tools capable of any network access whatsoever, since no
+   scoping mechanism can ever meaningfully restrict what a fetch-style tool can reach.
+
+### Q7.2 · AI Application Security
+A team uses a single Anthropic API key across development, staging, and production
+environments, reasoning "it's simpler to manage one key." A bug introduced during
+local development testing ends up making calls against the same key used by the live
+production application, muddying production usage metrics and, in one incident,
+consuming enough of a shared rate limit to degrade production response times.
+
+A) This is acceptable, since using one key everywhere is always operationally simpler
+   regardless of the cross-environment risk it introduces.
+B) Environment-level separation (distinct keys per environment, ideally with distinct
+   rate-limit and spend visibility per key) prevents a development-time bug from
+   directly affecting production traffic and usage accounting, rather than sharing
+   fate across environments that should be isolated from each other.
+C) This is purely a cost-tracking inconvenience with no bearing on production
+   reliability, so it doesn't warrant separate keys per environment.
+D) The fix is to rotate the single shared key more frequently, which fully resolves
+   the cross-environment interference regardless of how many environments share it.
+
+### Q7.3 · Guardrails and Safe Deployment
+A medical-information chatbot's only safeguard against providing specific diagnostic
+or treatment recommendations (which the company's policy prohibits, requiring
+referral to a licensed professional instead) is a single system-prompt line: "avoid
+giving specific medical advice."
+
+A) This is sufficient, since a clearly worded instruction reliably and completely
+   prevents this category of output on its own.
+B) As with any compliance-sensitive domain, a single prompt-level instruction is one
+   probabilistic layer; a genuinely safe posture in a domain like medical guidance
+   typically layers output-side checks (scanning for diagnostic/treatment-recommendation
+   patterns before a response reaches the user) and human escalation paths on top of —
+   not instead of — the prompt-level guidance.
+C) This is unnecessary, since compliance requirements around medical guidance don't
+   meaningfully apply to AI-generated conversational responses.
+D) The fix is exclusively to increase the model's context window, since a larger
+   window makes the model less likely to produce prohibited content.
+
+### Q7.4 · Claude Hooks
+A coding agent occasionally reads or edits files inside a `.env` file and a `secrets/`
+directory that should never be touched by an automated process, and the team's only
+current safeguard is a system-prompt line asking the agent to "avoid reading
+sensitive configuration files."
+
+A) This is adequate, since a clearly worded instruction reliably prevents access to
+   specifically named sensitive paths.
+B) A hook that deterministically blocks read/edit operations on specific
+   paths/patterns (e.g., `.env`, `secrets/`) before they execute is the appropriate
+   enforcement mechanism — path-based access restriction on genuinely sensitive
+   locations shouldn't depend on the model's own judgment holding in every
+   circumstance.
+C) The fix is to delete the `.env` file and `secrets/` directory from the repository
+   entirely, removing the credentials the agent might otherwise access rather than
+   restricting access to them.
+D) The fix is to increase the model's temperature, since more varied outputs make the
+   agent less likely to systematically target the same sensitive paths.
+
+### Q7.5 · Identity, Secrets, and Key Management
+A team has never rotated any of its API keys or service credentials since initial
+setup, reasoning "if there's no evidence of a breach, there's no reason to rotate."
+
+A) This reasoning is sound; credential rotation is only ever warranted reactively,
+   after a specific, confirmed exposure incident, and has no value as a standing
+   practice otherwise.
+B) Periodic credential rotation as a standing hygiene practice — independent of
+   whether a breach has been detected — limits the exposure window of a credential
+   that may have been compromised without detection (via an unnoticed leak, a former
+   employee's continued access, or a log inadvertently capturing it), rather than
+   relying solely on reactive rotation after a confirmed incident.
+C) Rotation should happen constantly, on every single request, since any rotation
+   cadence slower than per-request leaves a meaningful exposure window.
+D) Rotation cadence is irrelevant as long as credentials are stored in a secrets
+   manager, since storage location alone fully determines exposure risk regardless of
+   how long a given credential remains valid.
+
+---
+
+## Domain 8: Tools and MCPs (Q8.1–Q8.7)
+
+### Q8.1 · Tool Implementation
+A `get_document` tool always returns a document's full raw text in its result,
+regardless of how long the document is or how much of it the current task actually
+needs, causing a 50-page document to flood the agent's context on every single call
+even when only one short section is relevant.
+
+A) This is fine, since returning the complete, unmodified document is always the
+   safest choice regardless of how much of it the current task actually needs.
+B) Tool output design should return concise, relevant content rather than a full raw
+   payload by default — supporting pagination, section retrieval, or a
+   summarized/excerpted view lets the tool serve the cases that need a small piece
+   without forcing every call to pay the context cost of the entire document.
+C) The fix is to remove the tool entirely and have the agent request document content
+   through the system prompt instead, since tools should never return large content.
+D) The fix is to increase the model's context window so it can always accommodate a
+   full document regardless of how much of it any given task actually needs.
+
+### Q8.2 · Tool Implementation
+An agent has over 200 tools available simultaneously in every session, most of them
+irrelevant to any single given task, and tool-selection accuracy has degraded
+noticeably as the toolset has grown, with the agent occasionally choosing a
+plausible-sounding but wrong tool from among many similar options.
+
+A) This is expected and cannot be improved; tool-selection accuracy is entirely
+   independent of how many tools are available in a given session regardless of scale.
+B) Curating which tools are actually exposed for a given task or session — rather than
+   presenting the full 200-tool catalog uniformly regardless of relevance — reduces the
+   selection burden and the chance of a plausible-but-wrong choice among many similar
+   options; this can be done through task-scoped toolsets, grouping, or a routing
+   step that narrows the visible set before the agent has to choose.
+C) The fix is exclusively to rewrite every one of the 200 tools' descriptions to be
+   longer and more detailed, since description length alone determines selection
+   accuracy regardless of how many tools are visible at once.
+D) The fix is to increase temperature so the agent explores tool choices more broadly
+   before settling on one.
+
+### Q8.3 · Tool Implementation
+A `get_order_details` tool's schema is updated to add a new optional `loyalty_tier`
+field, and the team wants existing agent behavior and existing callers to continue
+working exactly as before, without requiring every consumer to be updated in lockstep
+with the schema change.
+
+A) Any schema change, no matter how small, requires every consumer to be updated in
+   lockstep before it can be deployed, since tool schemas cannot evolve in a
+   backward-compatible way under any circumstances.
+B) Adding a new field as optional, rather than required, preserves backward
+   compatibility — existing callers and existing agent behavior that never reference
+   the new field continue to work exactly as before, while new callers can opt into
+   using it once they're updated.
+C) The fix is to create an entirely new, separately-named tool for every schema change,
+   however small, rather than ever evolving an existing tool's schema.
+D) Schema versioning has no bearing on tool behavior, since the model always adapts
+   automatically and correctly to any schema change with zero risk of disruption.
+
+### Q8.4 · MCP Server Development
+A client application wants to know, before making any calls, exactly which tools,
+resources, and prompts a newly connected MCP server actually exposes, rather than
+assuming a fixed set of capabilities based on what a different server it previously
+connected to happened to provide.
+
+A) The client should hardcode its assumptions about server capabilities based on
+   experience with other servers, since all MCP servers are guaranteed to expose an
+   identical set of tools, resources, and prompts regardless of implementation.
+B) MCP's initial handshake/capability-discovery step is exactly designed for this: a
+   client can query what a given server actually exposes before invoking anything,
+   rather than relying on an assumption carried over from a different server's
+   capabilities.
+C) Capability discovery is not part of the MCP protocol, so the client must be
+   manually reconfigured by a human developer every time it connects to a new server.
+D) The client should simply attempt every possible tool call and observe which ones
+   succeed, since this is the only way MCP allows a client to learn a server's
+   capabilities.
+
+### Q8.5 · Agentic Customization
+A team has a reusable, well-documented analysis workflow — supporting reference
+material, a checklist, and worked examples — that they want available to any Claude
+context that needs it (Claude Code, a custom application, an internal chat tool), not
+tied to any single external system to call.
+
+A) This should be built as an MCP server, since any reusable capability that spans
+   multiple Claude surfaces must be implemented as an MCP integration regardless of
+   whether it calls anything external.
+B) This fits a Skill: procedural knowledge and reference material with nothing
+   external to call, meant to load on demand across whichever context needs it — the
+   defining fit is "knowledge/procedure to draw on," not "a system to connect to,"
+   which is what would call for an MCP server instead.
+C) This should be hardcoded permanently into every consuming application's system
+   prompt, since that's the only way to guarantee the content is available regardless
+   of context.
+D) This cannot be shared across different Claude surfaces under any mechanism; each
+   surface would need its own independently maintained copy of the material.
+
+### Q8.6 · Agentic Customization
+A team has built a matched set of a custom Skill, two custom commands, and an MCP
+server connection that are always meant to be used together, and currently expects
+every new developer to separately discover, install, and configure all three pieces
+by hand across their own environment.
+
+A) This is fine as a standing practice, since requiring each developer to
+   independently assemble the same three components ensures everyone understands each
+   piece individually.
+B) Bundling the Skill, commands, and MCP connection into a single distributable plugin
+   lets a developer add the whole matched set in one step, rather than separately
+   discovering, installing, and configuring three independently maintained pieces by
+   hand every time — exactly the coordination problem plugins are meant to solve.
+C) The fix is to merge the Skill, commands, and MCP server into one giant `CLAUDE.md`
+   file, since `CLAUDE.md` is capable of replacing all three mechanisms directly.
+D) Bundling is unnecessary as long as clear written setup instructions exist, since
+   documentation alone is functionally equivalent to a single-step installable
+   package.
+
+### Q8.7 · Agentic Customization
+A team is deciding how to expose two different kinds of reference material to an
+agent: (1) live, frequently-changing pricing data pulled from an internal pricing
+system, and (2) a static, rarely-changing internal style guide with no external
+system behind it.
+
+A) Both should be modeled identically as Skills, since Skills are the correct
+   mechanism for any reference content regardless of whether it's live external data
+   or static packaged knowledge.
+B) The live pricing data fits an MCP resource (content read from an actual external
+   system, potentially changing between reads), while the static style guide fits a
+   Skill (packaged procedural/reference knowledge with no external system behind it,
+   loaded on demand) — the source of the content (a live external system versus
+   self-contained packaged material) is what distinguishes the right mechanism, not
+   how "important" either piece of content is.
+C) Both should be modeled identically as MCP resources, since resources are the only
+   mechanism MCP defines for exposing any reference content whatsoever.
+D) The distinction between a resource and a Skill has no bearing on this decision,
+   since both mechanisms are fully interchangeable regardless of whether content comes
+   from a live system or a static package.
+
+---
+
+## Answer Key & Rationale — Set 3
+
+### Domain 1
+
+**Q1.1 — B.** A hybrid handles the fully-specified majority with a fixed sequence and
+routes the genuinely open-ended multi-city case to agentic reasoning — matching each
+part of the task to what it actually needs. *(A discards real requests instead of
+handling them; C pays full autonomy overhead on the simple majority; D invents
+per-destination subagent structure a simple branch doesn't require.)*
+
+**Q1.2 — B.** Classifying and routing to the specialist(s) a request actually concerns
+is the entire point of having specialists — forwarding everything through one by
+default defeats it. *(A treats blanket routing as thoroughness; C optimizes for the
+wrong variable (speed) instead of relevance; D misassigns a routing-logic problem to
+hooks.)*
+
+**Q1.3 — B.** The simple lookup doesn't need isolation; the open-ended, potentially
+many-attempt reproduction does — matching delegation to actual need for expendable,
+exploratory context. *(A and C treat delegation as governed by tool count rather than
+task shape; D wrongly restricts subagents to cross-domain work only.)*
+
+**Q1.4 — B.** Budget and turn caps guard against different failure modes; a cheap,
+high-turn-count loop needs `max_turns` specifically, since it may never trip a dollar
+threshold. *(A accepts an unbounded loop as harmless because it's individually cheap;
+C and D each apply the wrong lever to a problem that isn't about per-turn cost or
+length.)*
+
+**Q1.5 — A.** Fork the risky, isolated exploration; the main thread continues
+unaffected precisely because it was never forked away from. *(B misapplies resume,
+which restores a saved state rather than creating a parallel isolated branch; C
+ignores a real need for isolation; D forks the wrong side of the scenario.)*
+
+**Q1.6 — B.** Elastic, rare-peak demand with no desire to manage capacity planning is
+exactly the tradeoff managed hosting is built for. *(A commits to permanent
+infrastructure sized for a rare case; C and D each deny or overstate a limitation that
+doesn't hold.)*
+
+**Q1.7 — A.** Match framework structure to actual correctness need — strict typed
+validation for the task where a bad intermediate value truly matters, none of that
+overhead for the simple task that doesn't have the same failure mode. *(B and D apply
+structure regardless of fit; C denies a framework can meaningfully help at all.)*
+
+**Q1.8 — B.** Case-scoped (not session- or even user-scoped) persistent memory is what
+lets any session, any agent, pick the case back up coherently. *(A relies on a
+lifetime the scenario shows is too short; C scopes to the wrong entity when a case can
+span more than the interactions of one person; D substitutes window size for actual
+persistence.)*
+
+**Q1.9 — A and C.** Specialization genuinely helps multi-domain routing, and
+coordination/aggregation genuinely costs something a single agent doesn't pay — both
+real, non-absolute tradeoffs. *(B and D assert guarantees — zero overhead, zero
+misrouting — that don't hold; E is the second correct statement, not a distractor:
+aggregation introduces its own failure surface.)*
+
+### Domain 2
+
+**Q2.1 — B.** A specific calculation is functional; a DR/availability target
+regardless of feature is infrastructure — two genuinely distinct categories here. *(A
+and D collapse the distinction; C misclassifies a statable, testable constraint as a
+mere business goal.)*
+
+**Q2.2 — B.** Without a measurable target, "quickly" and "snappy" can't be verified
+against — the requirement needs clarification into something testable before
+implementation proceeds. *(A treats vague language as sufficient; C mislabels an
+unrefined statement as already infrastructure-grade; D overcorrects by discarding a
+salvageable requirement.)*
+
+**Q2.3 — B.** Turning a completed design into working code and its accompanying unit
+tests is the defining implementation activity. *(A conflates design with its
+execution; C and D each misplace this activity into an earlier or unrelated phase.)*
+
+**Q2.4 — B.** Verifying the finished build against expectations before real traffic
+sees it is a distinct testing/validation activity, separate from both implementation
+and post-launch operations. *(A misplaces a pre-launch activity into ongoing
+operations; C conflates fixing found issues with implementation itself; D wrongly
+treats one eval run as sufficient regardless of what UAT is meant to add.)*
+
+**Q2.5 — A.** Multiple image content blocks are supported per message, and each
+contributes to input token cost — the team should size their estimate for all four
+together. *(B, C, and D each invent a restriction — single-image-only, zero token
+cost, or a thinking-vision conflict — that doesn't hold.)*
+
+**Q2.6 — B.** Thinking tokens are billed as part of output, so a workload doing
+substantial internal reasoning will show higher output token counts than the visible
+answer alone suggests. *(A misreads an accurate bill as an error; C and D each invent
+a flat-fee or effort-gated billing mechanism that isn't how it works.)*
+
+**Q2.7 — B.** Waiting for a content block to finish streaming before parsing and
+executing its JSON avoids acting on incomplete, invalid data. *(A and C overcorrect
+into declaring tool use and streaming incompatible; D misattributes malformed partial
+JSON to an unrelated output-length limit.)*
+
+**Q2.8 — A.** The `system` parameter is the purpose-built mechanism for persistent,
+session-level instructions, distinct in role from the turn-by-turn `messages` array —
+placement is not interchangeable. *(B and C assert an equivalence or deprecation that
+doesn't hold; D invents an API restriction that doesn't exist.)*
+
+**Q2.9 — B.** An idempotency mechanism lets a retried call after a timeout be
+recognized as the same operation instead of creating a duplicate. *(A dismisses a real
+data-integrity problem; C discards retries entirely instead of making them safe; D
+reduces but doesn't eliminate the possibility of a timeout, so it doesn't fix the
+underlying unsafe-retry issue.)*
+
+**Q2.10 — B.** Structured, contextual logging is what makes reconstructing a specific
+failure possible at all — sparse generic logs can't support that. *(A settles for
+category-level tracking when instance-level tracing is the actual need; C and D each
+substitute an unrelated fix — model capability or evals — for the missing
+observability itself.)*
+
+**Q2.11 — B.** Fast, cheap unit tests for logic that doesn't need a live call, reserved
+end-to-end tests for what genuinely requires the real integration, catches more
+regressions faster and cheaper than either extreme alone. *(A and C each treat one
+test type as sufficient on its own; D wrongly claims LLM-integrated code needs no
+adjustment to general testing practice.)*
+
+**Q2.12 — B.** Version-pinning the SDK and treating upgrades as deliberate, tested
+changes prevents an unannounced default-behavior change from silently altering
+production output. *(A treats automatic adoption of unreviewed changes as inherently
+beneficial; C misassigns an SDK-level concern to model versioning; D discards a
+working tool instead of managing its version properly.)*
+
+**Q2.13 — B.** Structuring or modularizing a long prompt makes isolated updates safer
+to reason about, even though the final assembled prompt can still be sent as one
+piece of text. *(A treats structurelessness as inherent to the mechanism itself; C
+removes legitimately necessary content instead of organizing it; D invents an API
+restriction that doesn't exist.)*
+
+**Q2.14 — B.** Separating what a customer needs (clear, actionable messaging) from
+what engineering needs (full internal detail, kept in logs) is standard practice for
+user-facing error handling. *(A treats raw internal detail as always more helpful than
+a designed message; C removes even the minimal signal a user needs; D wrongly assumes
+internal audiences carry no distinct exposure consideration.)*
+
+**Q2.15 — B.** Per-user/per-account limits at the application layer bound both abuse
+and accidental runaway usage, independent of overall account-level API limits. *(A
+assumes trust substitutes for a technical control; C addresses per-unit cost without
+addressing unbounded volume; D wrongly restricts rate limiting to a security-only
+concern.)*
+
+**Q2.16 — B.** Both stateless-client and server-session designs are legitimate,
+application-level tradeoffs — the API's own statelessness doesn't force one choice.
+*(A and C each treat the API's mechanics as dictating the application's architecture
+when it doesn't; D understates real architectural consequences of the choice.)*
+
+**Q2.17 — B.** A cached or simplified fallback improves outcomes for the failures
+where one is genuinely available, without claiming every failure can be silently
+smoothed over. *(A treats every failure as needing to be a hard stop; C substitutes
+indefinite retrying for having any fallback path at all; D assumes high uptime removes
+the value of degrading gracefully on the failures that still occur.)*
+
+**Q2.18 — B.** A staged rollout reduces blast radius for whatever an eval suite didn't
+happen to catch — the two safeguards complement rather than substitute for each
+other. *(A treats a passing eval suite as a complete guarantee; C understates real
+prompt-change risk; D overcorrects into never shipping changes to production at
+all.)*
+
+**Q2.19 — A and B.** Environment parity and feature-flagged variant control are both
+genuine, auditable configuration-management practices. *(C is a security failure
+disguised as convenience; D and E each remove the documentation or safety net
+configuration management exists to provide.)*
+
+### Domain 3
+
+**Q3.1 — A.** Directory-scoped configuration loads specifically when work happens in
+that directory, rather than competing for attention as one paragraph in a repo-wide
+file. *(B is the same location, just louder wording; C reintroduces a manual-recall
+step the model shouldn't need; D misattributes a scoping problem to model capability.)*
+
+**Q3.2 — B.** A hook fires deterministically on the file-edit event itself, independent
+of whether the model remembers or chooses to mention running the formatter. *(A and D
+rely on the model's own judgment or naming choices holding reliably; C denies a real
+mechanism Claude Code actually has.)*
+
+### Domain 4
+
+**Q4.1 — B.** A baseline eval taken before the change is what makes "did this help"
+answerable afterward — without one, before/after comparison has nothing to compare
+against. *(A accepts unmeasurable change as normal; C substitutes trace analysis for a
+baseline it can't retroactively create; D treats stated intent as equivalent to
+verified outcome.)*
+
+### Domain 5
+
+**Q5.1 — B.** `temperature` and `top_p` are distinct, interacting controls, not
+duplicate levers for one effect — understanding each is a prerequisite to tuning both.
+*(A and C each assert an equivalence or deprecation that doesn't hold; D wrongly
+claims parameter interaction never occurs.)*
+
+**Q5.2 — B.** Context window size can genuinely differ by model, so an assumption
+carried over from a different tier should be checked against that specific model's
+documentation, not assumed. *(A and C each misattribute the cause to a documentation
+error or an unrelated account-level property; D deflects from context window as the
+actual, stated cause.)*
+
+**Q5.3 — B.** Example ordering and balance can shape what a model infers about a
+task's typical distribution — worth reconsidering when ambiguous cases are
+under-classified into heavily-represented easy categories. *(A denies a real,
+testable effect; C and D each overcorrect toward removing examples entirely or adding
+more of the wrong kind.)*
+
+**Q5.4 — B.** Handling the SDK's typed error classes distinctly enables the right
+recovery strategy per actual cause, instead of collapsing genuinely different
+failures into one generic response. *(A and D treat all failures as equivalent when
+they aren't; C discards information the SDK already correctly provides.)*
+
+**Q5.5 — B.** Where the SDK's built-in concurrency controls already fit the need,
+re-implementing them by hand typically costs more to build and maintain correctly than
+it saves. *(A and C each overstate custom logic's necessity or deny the SDK offers
+this at all; D denies a real correctness consequence of getting concurrency handling
+wrong.)*
+
+**Q5.6 — B.** A one-directional streaming mechanism fits a need with no
+mid-response client-to-server push, without paying for bidirectional complexity that
+isn't needed. *(A and D overstate websockets as the only option; C denies a real,
+consequential difference between the two mechanisms.)*
+
+**Q5.7 — B.** Cascading routes the bulk of easy inputs to a cheaper tier and reserves
+the expensive tier for inputs actually flagged as ambiguous, cutting cost without
+sacrificing accuracy where it matters. *(A pays top-tier cost uniformly regardless of
+need; C sacrifices accuracy uniformly instead of selectively; D dismisses a real,
+usable strategy as inherently unworkable.)*
+
+**Q5.8 — B.** A live A/B test captures real-world performance on the application's
+actual input distribution and outcomes in a way generic offline benchmarks can't fully
+substitute for — the two approaches complement each other. *(A and D overstate
+benchmark sufficiency or deny any meaningful difference; C dismisses a standard,
+valuable practice as categorically too risky.)*
+
+**Q5.9 — B.** Caching's payoff scales with how often the prefix is actually reused
+before expiring — a low-volume workload simply doesn't generate the reuse a
+high-volume one does, and other cost levers may matter more for it. *(A and D deny
+that request volume affects caching's realized benefit; C overcorrects into discarding
+caching everywhere instead of recognizing it fits some workloads better than
+others.)*
+
+**Q5.10 — B.** Adaptive thinking's value is in letting the model assess reasoning need
+per request, even within a category a human judged "simple" upfront — blanket
+category-level disabling removes exactly that. *(A treats upfront human judgment as
+always superior to per-request model assessment; C and D each invent a restriction or
+unrelated mapping that doesn't reflect how the feature works.)*
+
+### Domain 6
+
+**Q6.1 — B.** Retrieving only what's relevant at the point of need uses context budget
+far more efficiently than preloading an entire knowledge base regardless of
+relevance. *(A treats preloading as inherently safer despite its real cost; C
+discards content instead of retrieving it selectively; D denies that preloaded content
+counts against the same context budget.)*
+
+**Q6.2 — B.** Tool results are turn-specific and belong in message history; folding
+them permanently into the system prompt erases the distinction between standing
+instructions and this turn's data. *(A treats system-prompt placement as an automatic
+priority boost regardless of content type; C and D each deny a real, consequential
+distinction between the two locations.)*
+
+**Q6.3 — B.** Role-framing adds value where perspective or style genuinely matters; a
+fully deterministic, criteria-driven classification task doesn't have that kind of
+room for a persona to help. *(A and C each apply an absolute claim the task-dependent
+reality doesn't support; D invents an unrelated compounding effect with temperature.)*
+
+**Q6.4 — B.** Structured variable substitution with clear boundaries reduces the risk
+of an unusual value distorting the prompt's structure — a discipline related to, but
+distinct from, blocking instruction-following on embedded text specifically. *(A
+overtrusts model capability to compensate for poor assembly; C picks an arbitrary,
+incomplete filter; D denies that prompt assembly method has any effect on
+reliability.)*
+
+**Q6.5 — A.** On a model generation with adaptive thinking, letting the model itself
+judge reasoning depth (with `effort` as a lever) is generally the more direct
+mechanism; explicit step-by-step phrasing was more essential where that capability
+wasn't available — defaulting to both together isn't automatically better than using
+the one suited to the situation. *(B and C each assert an equivalence or a blanket
+harm that doesn't hold; D overstates what thinking replaces.)*
+
+**Q6.6 — B.** Buffering until a content block is complete before parsing avoids the
+real risk of passing invalid, partial data downstream. *(A and C overcorrect into
+declaring JSON output incompatible with streaming; D misattributes malformed partial
+JSON to an unrelated output-length limit.)*
+
+**Q6.7 — A and B.** Surfacing the actual source for verification, and treating
+confident presentation as no evidence of accuracy, both directly reduce the risk of an
+unverified citation being trusted. *(C misreads phrasing variety as a reliability
+signal; D wrongly grants quotes automatic credibility; E makes the actual problem —
+polish mistaken for accuracy — worse, not better.)*
+
+### Domain 7
+
+**Q7.1 — B.** Scoping a fetch-style tool's reachable destinations (an allowlist, or
+network-level restriction) addresses the real SSRF-style risk of a tool bridging into
+otherwise-unreachable internal endpoints. *(A dismisses a genuine risk as inherent and
+acceptable; C misattributes the fix to an unrelated sampling parameter; D removes a
+needed capability instead of scoping it properly.)*
+
+**Q7.2 — B.** Distinct keys per environment prevent a development-time bug from
+directly affecting production traffic, rate limits, and usage accounting. *(A
+prioritizes simplicity over a demonstrated cross-environment risk; C understates a
+real reliability impact, not just a cost-tracking inconvenience; D addresses
+credential lifetime, not the actual environment-isolation gap.)*
+
+**Q7.3 — B.** Output-side checks and human escalation, layered alongside (not instead
+of) the prompt instruction, address the probabilistic nature of prompt-only guidance
+in a compliance-sensitive domain. *(A overstates what a single instruction reliably
+guarantees; C dismisses a real compliance obligation; D substitutes an unrelated
+context-window change for actual content-policy enforcement.)*
+
+**Q7.4 — B.** A hook enforcing path-based restrictions deterministically blocks access
+to genuinely sensitive locations, independent of whether the model's own judgment
+holds under every circumstance. *(A overstates instruction reliability; C removes
+needed files instead of restricting access to them; D misattributes the fix to an
+unrelated sampling parameter.)*
+
+**Q7.5 — B.** Standing, periodic rotation limits the exposure window of a credential
+that may be compromised without anyone having detected it yet — reactive-only
+rotation misses exactly that case. *(A treats reactive rotation as sufficient on its
+own; C proposes an impractical extreme; D wrongly claims storage location alone
+determines exposure risk regardless of credential lifetime.)*
+
+### Domain 8
+
+**Q8.1 — B.** Returning concise, relevant content (with pagination/excerpting
+available) lets a tool serve small-need cases without forcing every call to pay for
+the entire document. *(A treats full-payload return as always safest despite its real
+context cost; C removes a needed capability instead of designing its output well; D
+treats a bigger window as a substitute for sensible tool output design.)*
+
+**Q8.2 — B.** Curating which tools are actually visible for a given task reduces
+selection burden and the chance of a plausible-but-wrong choice among many similar
+options. *(A denies that toolset size affects selection accuracy at all; C assumes
+description length alone can compensate for sheer visible quantity; D misapplies
+temperature to a structural selection problem.)*
+
+**Q8.3 — B.** An additive optional field preserves backward compatibility — existing
+callers that don't reference it are unaffected, while new callers can opt in. *(A and
+C are absolutist positions that make ordinary schema evolution impractical; D wrongly
+assumes zero-risk automatic adaptation regardless of what actually changed.)*
+
+**Q8.4 — B.** MCP's capability-discovery handshake is exactly designed to let a client
+learn what a specific server exposes before calling anything, rather than assuming
+based on a different server's capabilities. *(A and C deny this mechanism exists; D
+proposes a wasteful, unreliable trial-and-error substitute for an actual discovery
+step.)*
+
+**Q8.5 — B.** Procedural/reference knowledge with nothing external to call, needed
+across multiple Claude surfaces, is exactly what a Skill is for. *(A misapplies MCP
+where there's nothing external to connect to; C discards a reusable mechanism for
+per-application duplication; D wrongly denies any cross-surface sharing mechanism
+exists.)*
+
+**Q8.6 — B.** Bundling matched, always-used-together components into one
+distributable plugin is exactly the coordination problem plugins solve, versus manual
+per-developer assembly of the same three pieces. *(A treats redundant manual assembly
+as a feature rather than friction; C overreaches `CLAUDE.md`'s actual role; D treats
+documentation as equivalent to an actual one-step installable package.)*
+
+**Q8.7 — B.** Live external data fits a resource; static, self-contained
+procedural/reference knowledge fits a Skill — the source of the content, not its
+perceived importance, is what determines the right mechanism. *(A and C each force one
+mechanism onto both cases regardless of whether the content actually comes from a live
+external system; D denies a real, consequential distinction between the two.)*
