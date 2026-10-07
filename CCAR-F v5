@@ -1,0 +1,1464 @@
+# CCAR-F — 
+
+
+Answer and rationale sit directly under each question. Every distractor is a real
+technique that would be correct in a nearby scenario; the rationale names that scenario.
+
+## Coverage map
+
+| Objective (shortened)                         | Score | Domain | Questions |
+|-----------------------------------------------|-------|--------|-----------|
+| Dynamic decomposition vs fixed sequence       | 50%   | 1      | W1–W9     |
+| Session resumption, targeted re-analysis      | 83%   | 1      | W10–W16   |
+| MCP & settings scope (project vs user)        | 0%    | 2      | W17–W20   |
+| MCP integration: env expansion, discovery     | 50%   | 2      | W21–W23   |
+| Tool descriptions & disambiguation            | 50%   | 2      | W24–W25   |
+| Codebase exploration: Grep, Glob, Read        | 50%   | 2      | W26–W27   |
+| Config mechanism selection                    | 0%    | 3      | W28–W31   |
+| PostToolUse code-quality hooks                | 0%    | 3      | W32–W34   |
+| Iterative refinement workflows                | 25%   | 3      | W35–W37   |
+| Plan mode vs direct execution                 | 67%   | 3      | W38–W39   |
+| Feedback loops with structured error metadata | 0%    | 4      | W40–W46   |
+| Extraction schemas: optional/nullable/enum    | 67%   | 4      | W47–W51   |
+| Context management across sessions            | 0%    | 5      | W52–W60   |
+
+Two honest caveats. The domain assignment of each objective is my reading of the exam
+guide; check it against your official PDF. Claude Code specifics used below (hook exit
+codes, MCP scope precedence, `${VAR:-default}` expansion, settings file locations) match
+the docs as of mid-2026; verify against current docs if anything looks off.
+
+---
+
+# Domain 1 — Agentic Architecture & Orchestration (16)
+
+### W1 · Dynamic decomposition
+
+An incident agent is asked: "Why did p99 latency triple after Tuesday's deploy?" The
+coordinator immediately creates six subtasks (database, cache, network, code diff, config,
+dependencies), runs them in parallel, and merges the results. The cache subagent reports
+the hit rate fell to zero because a config key was renamed in the deploy. The other five
+return long, mostly irrelevant analyses. The final report gives all six equal weight, the
+root cause is buried, and nobody checked which change renamed the key or what else reads
+it.
+
+What is the best design change?
+
+A) Keep the six-way fan-out but rewrite the synthesis prompt so findings are ranked by
+   strength of evidence before the report is assembled.
+B) Run the six probes one after another in a fixed priority order and stop the run at the
+   first probe that reports a significant anomaly.
+C) Treat the six probes as a provisional plan; when a strong lead appears, re-plan around
+   it, adding follow-up subtasks and dropping unproductive branches.
+D) Give all six subagents a shared scratchpad so each probe can read the others' interim
+   findings and adjust the scope of its own analysis as it goes.
+
+**Answer: C**
+
+The defect is that the plan never changed after the decisive finding. The obvious next
+questions (which commit renamed the key, what other consumers read it) only exist because
+of what the cache probe found, so only a coordinator that re-plans on findings will ask
+them.
+
+- **A** — Right when branches are independent and each is complete on its own. Better
+  ranking surfaces the cache finding but still generates no follow-up subtasks.
+- **B** — Right for confirmatory checks with a known order of likelihood. Here the order is
+  arbitrary, the first anomaly may be a symptom rather than the cause, and the sequence is
+  still fixed.
+- **D** — Shared visibility helps coordination, but no component owns the plan; each
+  subagent still runs its original scoped task, and nobody spawns the follow-ups.
+
+### W2 · Dynamic decomposition (inverse case)
+
+A team reviews 30-file pull requests with a coordinator that decides at each step which
+file or concern to look at next. Reviews vary run to run, and on large PRs some changed
+files are never looked at. Cross-file problems (a renamed function still called by its old
+name elsewhere) are sometimes caught, sometimes not.
+
+What is the best restructuring?
+
+A) Replace the dynamic loop with a fixed chain: a local-issues pass over every file, then
+   one cross-file integration pass over the per-file results.
+B) Keep the dynamic coordinator, adding an instruction that it must confirm every changed
+   file was examined before it writes the final review.
+C) Keep the dynamic coordinator, letting it spawn follow-up subtasks whenever a per-file
+   finding suggests a cross-file interaction worth tracing.
+D) Split the PR into five batches of six files, give each batch its own dynamic
+   coordinator, and merge the five resulting reports at the end.
+
+**Answer: A**
+
+The work is an enumerable set known in advance (every changed file) plus one integration
+step. Nothing about which files need review depends on intermediate findings, so a fixed
+sequence guarantees coverage and consistency that a dynamic loop can't.
+
+- **B** — A soft instruction guarding a structural guarantee; it fails under the same load
+  that caused the skipped files.
+- **C** — The right behaviour for open-ended investigations (W1). It does nothing for the
+  actual defect, which is coverage of a known, finite set.
+- **D** — Shrinks each loop but keeps the same nondeterminism inside each batch, and
+  cross-file issues that span batches now have no pass that sees both sides.
+
+### W3 · Dynamic decomposition
+
+An agent is migrating 200 modules to a new API. Its plan: list the modules and migrate
+them alphabetically. At module 12 it finds that many modules depend on a shared adapter
+that must change first. At module 19 it finds a deprecated pattern that needs a different
+migration approach. More such discoveries are likely.
+
+What is the best way to proceed?
+
+A) Continue alphabetically, logging each newly discovered dependency in a notes file so it
+   can be handled in a cleanup pass after all 200 modules are done.
+B) Pause, run a complete dependency analysis of all 200 modules, then execute the
+   resulting ordered plan strictly, without any further modification.
+C) Spawn one subagent per remaining module in parallel so the dependency problems surface
+   all at once instead of one module at a time.
+D) Map dependencies first, generate a prioritized subtask list, and insert or reorder
+   subtasks as further shared dependencies or patterns surface.
+
+**Answer: D**
+
+Mapping first gives a sensible starting order; allowing the list to change keeps it
+correct as the codebase reveals more.
+
+- **A** — Right when items are independent. Here migrating dependents before the adapter
+  produces broken intermediate states that the cleanup pass must redo.
+- **B** — The upfront analysis is good; "strictly, without modification" is the flaw. The
+  stem says discoveries will keep coming, and a frozen plan can't absorb them.
+- **C** — Parallelism before the order is known means every adapter-dependent module fails
+  concurrently. Parallel dispatch is right once items are known to be independent.
+
+### W4 · Dynamic decomposition
+
+A research agent answers "Should we enter market X?" with a fixed five-subtask plan:
+market size, competitors, pricing, regulation, distribution. The second subtask turns up a
+pending regulatory ban that would make entry impossible within a year. The agent still
+completes all five, including a detailed pricing model, and the ban appears as one
+paragraph among many.
+
+What should change?
+
+A) Have each subagent attach a "relevance to the final decision" score so the final report
+   can discount sections that turned out to matter less.
+B) Have the coordinator re-evaluate the remaining plan after each result, adding,
+   reprioritizing or cancelling subtasks based on what was found.
+C) Add a mandatory "regulatory blockers" subtask at the start of the fixed plan so future
+   runs always check for bans before doing pricing work.
+D) Run all five subtasks in parallel so total time is bounded by the slowest subtask
+   rather than spent sequentially on work that turns out low-value.
+
+**Answer: B**
+
+A finding that invalidates the premise of later subtasks should change the plan: cancel
+the pricing model, add "ban timeline and likelihood," "lobbying status," "adjacent
+markets."
+
+- **A** — Discounts work after it has been done, and still generates no follow-up on the
+  ban itself.
+- **C** — Patches the last surprise into a fixed plan. That is right when one blocker type
+  recurs predictably, but the next run's surprise will be something else.
+- **D** — Reduces latency but still executes every subtask regardless of findings, which
+  is the opposite of adapting.
+
+### W5 · Dynamic decomposition *(select TWO)*
+
+A support agent handles "my order failed, I want a refund." Policy requires identity
+verification, then an eligibility check, before any refund. Diagnosing why the order
+failed is open-ended: payment, inventory, address validation, fraud holds, or something
+new. Which two design choices are correct?
+
+A) Let the model decide whether identity verification is needed, based on how confident
+   it is that the customer is who they claim to be.
+B) Encode identity verification and the eligibility check as a fixed prerequisite chain
+   that always runs before any refund action can be taken.
+C) Pre-script the diagnosis as a decision tree covering the twelve failure causes that
+   were most common in last quarter's tickets.
+D) Let the diagnosis decompose dynamically, generating follow-up lookups based on what
+   each previous lookup revealed about the failure.
+E) Run diagnosis and verification as parallel subagents so the refund decision is never
+   delayed waiting for the slower of the two branches.
+
+**Answer: B and D**
+
+Same agent, two different task shapes. The compliance steps are fixed-order and must never
+be skipped, so they are chained (and are also good candidates for hook enforcement). The
+diagnosis branches on findings, so it decomposes dynamically.
+
+- **A** — Puts model discretion on a compliance gate; the very case where determinism is
+  required.
+- **C** — Right if failure causes formed a closed set. The stem says new causes appear, and
+  a decision tree has no branch for them.
+- **E** — Parallelism is right for independent branches, but a refund depends on
+  verification having passed; running them side by side removes the prerequisite order.
+
+### W6 · Dynamic decomposition
+
+A coordinator dispatches four subagents to investigate a data-corruption bug. Each
+subagent is allowed to spawn its own follow-up subagents when it finds a new lead. Two
+subagents independently discover that a shared serialization library is involved, and
+each spawns its own deep investigation of it. Costs double and the two reports disagree.
+
+What is the best fix?
+
+A) Let subagents keep spawning follow-ups, but give each one a list of the other
+   subagents' current assignments so it can avoid duplicating work.
+B) Forbid follow-up work: each subagent completes only its original assignment and new
+   leads it discovers are dropped rather than pursued.
+C) Have subagents return discovered leads to the coordinator, which owns the plan and
+   decides whether to pursue each lead and who should pursue it.
+D) Cap each subagent at two levels of nested spawning so duplicated work stays bounded
+   even when two branches discover the same lead.
+
+**Answer: C**
+
+Dynamic decomposition still needs a single owner of the plan. Centralizing re-planning
+lets the coordinator see both reports of the same lead and assign it once.
+
+- **A** — A snapshot of assignments goes stale immediately; decisions stay distributed and
+  races still happen.
+- **B** — Removes duplication by removing adaptivity, which is the capability the task
+  needs.
+- **D** — A depth cap is the right control for runaway recursion. It limits cost but does
+  nothing to prevent two branches pursuing the same lead.
+
+### W7 · Dynamic decomposition
+
+An agent is asked to "add multi-currency support to the billing service" in a codebase it
+has never seen. It drafts an eight-step plan from the ticket text and starts. At step 3 it
+discovers the currency is hardcoded in about 40 places, including reports and exports
+that the plan never mentioned.
+
+What should the agent have done from the start?
+
+A) Run a scoped exploration to map where currency is assumed, generate subtasks from that
+   map, and revise them as the work reveals more.
+B) Present the eight-step plan for developer approval before execution, so a human can
+   catch the gaps in it before any code is written.
+C) Break the work into a much finer plan of 30 steps so that any surprise affects only one
+   small step rather than invalidating a large one.
+D) Start by implementing the core currency model, since the rest of the plan can only be
+   known once the central abstraction actually exists.
+
+**Answer: A**
+
+The plan's inputs were incomplete. Exploring first turns unknown scope into known
+subtasks; keeping the list revisable handles what exploration still misses.
+
+- **B** — Review is valuable, but a human approving a plan drafted without exploration
+  shares its blind spot; neither has seen the 40 call sites.
+- **C** — Granularity doesn't create information; 30 steps derived from the same ticket
+  text miss the same reports and exports.
+- **D** — Build-the-core-first is right when the central abstraction is the main
+  uncertainty. Here the uncertainty is how widely the assumption is spread.
+
+### W8 · Dynamic decomposition
+
+A security agent must find every path by which user input reaches SQL. Its plan: grep for
+`execute(` calls and review each. Partway through it finds that the codebase also builds
+SQL through an ORM `raw()` helper and through an in-house `QueryKit` wrapper used in three
+services. Neither appeared in the original plan.
+
+What is the best approach?
+
+A) Expand the plan's search list to include `raw()`, stored procedures and every other
+   sink listed in a standard SQL-injection cheat sheet, then rerun it.
+B) Replace the sink-first search with a source-first trace from every HTTP handler
+   parameter forward through the call graph to wherever it ends.
+C) Keep the plan but run it twice, using the first run's findings as few-shot examples so
+   the second run searches more thoroughly than the first.
+D) Treat each newly discovered sink pattern as a trigger for new search subtasks, so the
+   search frontier grows as the findings reveal more sink types.
+
+**Answer: D**
+
+The set of sinks is codebase-specific and only knowable by exploring; each discovery
+(`QueryKit`) defines new searches (its callers, its own wrappers).
+
+- **A** — A standard checklist is right when the sink set is standard. No public list
+  contains an in-house `QueryKit`.
+- **B** — Source-first tracing is a legitimate strategy, but it is still a fixed plan, and
+  tracing every handler parameter is far more expensive than following discovered sinks.
+- **C** — Examples of already-found sinks teach the model to find those again, not to find
+  new sink types.
+
+### W9 · Dynamic decomposition
+
+After moving to dynamic decomposition, a coordinator re-plans after every tool result.
+The plan oscillates: subtasks are added, removed and re-added; work is abandoned
+half-finished; long investigations never complete.
+
+What is the right trigger for re-planning?
+
+A) Freeze the plan after the first three results, since early findings carry the most
+   information about the real shape of the task.
+B) Re-plan when a result invalidates an assumption behind pending subtasks or reveals new
+   required work; otherwise continue with the current plan.
+C) Re-plan on a fixed cadence, every fifth result, so the plan adapts regularly without
+   reacting to each individual tool output.
+D) Move re-planning into a separate planner subagent so the coordinator's own context
+   isn't consumed by repeated planning deliberation.
+
+**Answer: B**
+
+Adaptivity should be driven by information that changes the plan's assumptions, not by
+the arrival of any result.
+
+- **A** — An arbitrary freeze point discards discoveries made after it (W3, W8 are exactly
+  such late discoveries).
+- **C** — A cadence ignores whether anything changed: it churns when nothing did and lags
+  when something important arrives between ticks.
+- **D** — Isolating planning is good context hygiene when planning is heavy, but the
+  oscillation comes from the trigger, which a separate planner inherits.
+
+### W10 · Session resumption
+
+Yesterday an agent analyzed 40 files and began a refactor. Overnight a teammate merged
+changes touching 6 of those files. Today the developer resumes the session; the agent
+continues editing based on file contents in its history, and two of its edits conflict
+with the merged changes.
+
+What is the best resumption approach?
+
+A) Start a fresh session and have the agent re-analyze all 40 files, guaranteeing that its
+   understanding matches the current state of the code.
+B) Resume, then run `/compact` so stale file contents are summarized away before the agent
+   continues with the remaining edits.
+C) Resume, inject the list of files changed since the last session, and have the agent
+   re-read only those six before continuing.
+D) Resume and continue, relying on per-edit staleness checks to catch any file whose
+   contents changed after the agent last read it.
+
+**Answer: C**
+
+Targeted re-analysis keeps the 34 still-valid analyses and refreshes only what changed.
+
+- **A** — Right when most of the context is stale. With 6 of 40 changed, it throws away
+  valid work.
+- **B** — Compaction summarizes the stale contents and presents the summary as current
+  fact; it doesn't refresh anything.
+- **D** — Edit-time checks protect only the file being edited. Reasoning based on stale
+  contents of files the agent doesn't edit (callers, interfaces) is still wrong.
+
+### W11 · Session resumption
+
+A session from three days ago was building toward design A. Since then the branch was
+rebased, a design review switched the approach to design B, and about 70% of the files
+the session touched have changed.
+
+What is the best way to continue?
+
+A) Start a new session and inject a structured summary of the decisions still valid, the
+   new design direction, and the files now relevant.
+B) Resume the old session, then inject the new design direction and the full list of
+   changed files so the agent can re-read them selectively.
+C) Resume the old session with `--fork-session` so the original transcript is preserved
+   in case design A is ever revived.
+D) Resume the old session and run `/compact` with instructions to drop anything that
+   conflicts with the new design direction.
+
+**Answer: A**
+
+When most history is stale and its reasoning targets a superseded design, resuming
+imports more misleading context than useful context. A fresh session with injected,
+curated state is cleaner.
+
+- **B** — W10's correct answer; right when changes are limited. At 70% the "selective"
+  set is most of the codebase and the transcript is full of design-A reasoning.
+- **C** — Preserving the original is useful, but the fork still carries all the stale
+  context forward.
+- **D** — The summarizer must judge what conflicts with design B, which it does
+  unreliably; leftovers keep pulling toward design A.
+
+### W12 · Session resumption
+
+A refactor session ran out of context partway through. The engineer will start a new
+session tomorrow. What should be injected at the start of that session?
+
+A) The previous session's full transcript exported to a file, so nothing that might matter
+   is lost in the move to the new session.
+B) The previous session's final summary appended to the project `CLAUDE.md`, so every
+   future session starts with it automatically.
+C) A list of every file touched in the previous session, so the agent knows exactly which
+   files to re-read before it continues the work.
+D) A structured summary of completed steps, decisions with reasons, pending work, and file
+   references for targeted re-reading.
+
+**Answer: D**
+
+The new session needs state and intent, compactly: what's done, why choices were made,
+what's next, where to look.
+
+- **A** — Reintroduces the volume that overflowed the first session.
+- **B** — `CLAUDE.md` is for durable conventions shared by everyone; per-task state there
+  pollutes every teammate's sessions.
+- **C** — Tells the agent where, not why; decisions and their reasons are lost, so it may
+  re-litigate them.
+
+### W13 · Session resumption
+
+A developer runs two Claude Code sessions in the same repo: feature A in the morning, then
+a quick bug B fix in the afternoon. After a reboot they run `claude --continue` expecting
+feature A, but land in bug B.
+
+What is the right way to get back to feature A?
+
+A) Check out the feature branch first and run `--continue` again, since it reopens the
+   most recent session for the current branch.
+B) Use `--resume` and pick the feature-A session, since `--continue` reopens only the
+   most recent session in the directory.
+C) Use `--continue --fork-session`, duplicating the bug-B session so its original stays
+   available while work returns to feature A.
+D) Start a new session and paste the last few messages from the feature-A session to
+   re-establish where the work left off.
+
+**Answer: B**
+
+`--continue` is "most recent conversation in this directory"; `--resume` lets you choose
+which one.
+
+- **A** — `--continue` isn't branch-aware; the most recent session is still bug B.
+- **C** — Forking is for branching a conversation you want to diverge from; it forks bug
+  B, not feature A.
+- **D** — Throws away the full feature-A state that `--resume` restores directly.
+
+### W14 · Session resumption
+
+A long-running release agent is resumed after a pause. Its history contains a tool result
+from two hours earlier showing CI as "passing." Without re-checking, it tells the release
+manager CI is green. Since then, a new commit broke the build.
+
+What is the best fix?
+
+A) Strip all tool results from resumed sessions so the agent must re-run every tool call
+   it made previously before relying on any of them.
+B) Compact the session before resuming so earlier tool outputs appear as a summary rather
+   than as current-looking tool results.
+C) On resume, re-query volatile external state such as CI status, and treat earlier tool
+   results for it as historical rather than current.
+D) Add timestamps to every tool result so that the agent can compute their age and decide
+   for itself which ones are still safe to trust.
+
+**Answer: C**
+
+Some state (CI, deploys, queues) is volatile by nature. Resumption should refresh it
+deterministically instead of trusting history.
+
+- **A** — Re-runs everything, including stable results, which is the "repeat prior work"
+  the objective says to avoid.
+- **B** — A summary saying "CI passing" is still read as fact.
+- **D** — Timestamps are a useful supporting signal, but whether to refresh is still left
+  to model judgment, the failure that just happened.
+
+### W15 · Session resumption *(select TWO)*
+
+An extraction agent processes 500 documents, writing each result to a ledger with a
+non-idempotent insert. It crashes after 312 completed documents while document 313 was
+being written; nobody knows whether that insert committed. Which two steps belong in the
+resumption design?
+
+A) Persist a per-document completion manifest outside the conversation and resume from
+   the first document that it does not mark as complete.
+B) Re-process all 500 documents from the start, so that the finished ledger is guaranteed
+   to be complete after the crash.
+C) Resume the transcript and ask the model which documents still remain to be processed,
+   based on its record of the earlier work.
+D) Inject a prose summary of the run so far, noting roughly how far processing had got
+   when the crash happened.
+E) Check the ledger for document 313 before reprocessing it, since whether its write
+   committed is uncertain.
+
+**Answer: A and E**
+
+Durable, external progress state makes resumption exact; the one in-flight item needs
+explicit verification because the operation isn't idempotent.
+
+- **B** — Fine if writes were idempotent and cheap. Here it duplicates 312 ledger rows.
+- **C** — Progress tracked only in conversation is reconstructed by the model, not read
+  from a record.
+- **D** — "Roughly" is the problem; an approximate position either skips or duplicates
+  documents.
+
+### W16 · Session resumption
+
+Before ending a session, an agent recorded in its handoff notes the commit SHA it had last
+analyzed. The next morning, what's the best way to scope re-analysis?
+
+A) Diff the current HEAD against the recorded SHA and re-analyze the changed files plus
+   the files that directly import them.
+B) Re-analyze files whose filesystem modification time is later than the end of the
+   previous session.
+C) Re-read every file the agent previously read and compare the contents against what it
+   remembers of each.
+D) Re-analyze the files listed as changed in the most recently merged pull request's
+   description.
+
+**Answer: A**
+
+The recorded SHA makes the change set exact; including direct importers catches
+interface changes that invalidate analysis of unchanged files.
+
+- **B** — Checkouts, rebases and tooling rewrite modification times; they track disk
+  activity, not content changes.
+- **C** — Equivalent to re-analyzing everything, saving nothing.
+- **D** — Covers one merge; anything else merged since is missed, and descriptions are
+  often incomplete.
+
+---
+
+# Domain 2 — Tool Design & MCP Integration (11)
+
+### W17 · MCP scope
+
+Every engineer on a team should get the team's Jira MCP server automatically when they
+clone the repo. Each engineer must authenticate with their own personal token. Where
+should the server be configured?
+
+A) Each engineer adds it with `claude mcp add --scope user`, so the server is available in
+   every repo they open.
+B) Each engineer adds it at the default local scope, so their token stays private to them
+   in this one repo.
+C) A project-scoped `.mcp.json` is committed with a shared service-account token, so no
+   per-engineer setup is needed.
+D) A project-scoped `.mcp.json` is committed that reads each engineer's token through
+   `${JIRA_TOKEN}` expansion.
+
+**Answer: D**
+
+Project scope (`.mcp.json` at the repo root) is the shared, committed configuration; env
+var expansion keeps per-user secrets out of the repo.
+
+- **A** — User scope is right for personal tools wanted everywhere. It isn't automatic on
+  clone and drifts per engineer.
+- **B** — Local scope is right for private experiments (W18); nothing is shared.
+- **C** — Commits a secret and loses per-user attribution and permissions.
+
+### W18 · MCP scope
+
+An engineer wants to try an unvetted browser-automation MCP server for a week, only in
+this repo. Teammates must not get it, see it, or be prompted to approve it. Where should
+they configure it?
+
+A) At user scope, so it stays outside the repo's committed configuration entirely.
+B) At the default local scope, private to them and active only in this project.
+C) In `.mcp.json`, but left out of the team's documented list of approved servers.
+D) In `.claude/settings.local.json`, by listing it under `enabledMcpjsonServers`.
+
+**Answer: B**
+
+Local scope is private to one user and one project, exactly the experiment's boundary.
+
+- **A** — Keeps it out of the repo but makes it active in every project they open, wider
+  than needed.
+- **C** — Anything in `.mcp.json` is committed; teammates get the approval prompt.
+- **D** — `enabledMcpjsonServers` approves servers already defined in `.mcp.json`; it
+  doesn't define a server.
+
+### W19 · Settings scope
+
+The team wants an allow rule for `Bash(npm run test:*)` shared with everyone. One engineer
+also wants `Bash(docker:*)` allowed for themselves in this repo only, without committing
+it. Where does each rule go?
+
+A) Both in `~/.claude/settings.json`, since permission rules are a personal setting.
+B) Both in `.claude/settings.json`; teammates who don't use docker can ignore it.
+C) Team rule in `.claude/settings.json`; personal rule in `.claude/settings.local.json`.
+D) Team rule in `.claude/settings.json`; personal rule in a `CLAUDE.local.md` file.
+
+**Answer: C**
+
+Project settings are committed and shared; `settings.local.json` is per-user, per-project,
+and gitignored.
+
+- **A** — User settings apply across all of that engineer's projects and are never shared,
+  so the team rule doesn't reach anyone else.
+- **B** — Grants docker to everyone: a permission expansion nobody agreed to.
+- **D** — `CLAUDE.local.md` holds instructions, not permissions; it grants nothing.
+
+### W20 · MCP scope precedence
+
+The repo's `.mcp.json` defines a `github` server with org settings. One developer needs,
+for this repo only, to point `github` at a fork-testing configuration without affecting
+the team. What should they do?
+
+A) Add a local-scoped server also named `github`; local scope takes precedence over
+   project scope.
+B) Add a user-scoped server also named `github`; user scope takes precedence over project
+   scope.
+C) Edit `.mcp.json` on their own machine and be careful never to commit the change.
+D) Add a local-scoped server named `github-fork` alongside the project-scoped one.
+
+**Answer: A**
+
+For same-named servers, precedence is local, then project, then user.
+
+- **B** — Wrong order; the project definition wins over user scope.
+- **C** — Works until the edit is accidentally committed, and it drifts from team updates.
+- **D** — Both servers load with overlapping tools, which hurts tool selection, and the
+  org server is still the one used by default.
+
+### W21 · MCP integration
+
+A team's committed `.mcp.json` contains `"Authorization": "Bearer ghp_..."` in plain text.
+What is the right fix?
+
+A) Move the server to user scope so the token lives in each engineer's personal config.
+B) Add `.mcp.json` to `.gitignore` and share the file through the team wiki instead.
+C) Move the token into `.claude/settings.json` and reference it from `.mcp.json`.
+D) Replace the literal with `${GITHUB_TOKEN}` and rotate the token already exposed.
+
+**Answer: D**
+
+Env var expansion keeps the shared config committed and the secret out of it. The token
+is already in history, so it must be rotated too.
+
+- **A** — Removes the secret by removing the shared config; every engineer now maintains
+  their own copy.
+- **B** — Same loss of sharing, plus manual distribution that drifts.
+- **C** — `.claude/settings.json` is also committed; the secret just moves files.
+
+### W22 · MCP integration
+
+A team's MCP server should default to the staging API, but some engineers run the API
+locally and need to point at it without editing committed files. Best configuration?
+
+A) Define two servers, `api-staging` and `api-local`, in the committed `.mcp.json`.
+B) Use `"${API_BASE:-https://staging.example.com}/mcp"` as the server's URL.
+C) Use `"${API_BASE}/mcp"` and document that every engineer must export `API_BASE`.
+D) Commit the staging URL and have local-API users add a local-scoped override.
+
+**Answer: B**
+
+`${VAR:-default}` gives a working default for everyone and an override for anyone who
+sets the variable, with one definition.
+
+- **A** — Both servers load for everyone, doubling near-identical tools and confusing
+  selection.
+- **C** — Without a default, an unset variable breaks the config for everyone who didn't
+  export it.
+- **D** — Works (W20's mechanism), but each override duplicates the full server
+  definition and silently drifts when the team changes headers or args.
+
+### W23 · MCP integration
+
+A project-scoped MCP server was just added to `.mcp.json`. In the next session, Claude
+never uses its tools, even for requests clearly suited to them. What is the right first
+step?
+
+A) Add a note to `CLAUDE.md` listing the server's tools so Claude knows they exist.
+B) Restart with `--debug` and read the logs for the model's tool-selection reasoning.
+C) Run `/mcp` to confirm the server is approved, connected and exposing its tools.
+D) Move the server to user scope, which avoids the project approval requirement.
+
+**Answer: C**
+
+Verify discovery before tuning behaviour. Project servers need approval, and a missing
+env var or failed start means no tools exist to select.
+
+- **A** — Describes tools that may not be loaded; if they aren't, the note is false.
+- **B** — Debug logs help with connection errors, but they don't contain the model's
+  selection reasoning; the wrong target.
+- **D** — Changes the sharing model to dodge a check you haven't confirmed is the problem.
+
+### W24 · Tool descriptions
+
+A support agent has `search_kb(query)` ("Searches the knowledge base") and
+`search_tickets(query)` ("Searches tickets"). For "Has anyone else reported this crash
+this week?" it picks `search_kb` and answers with a troubleshooting article. Best fix?
+
+A) Expand both descriptions with when-to-use boundaries, example queries, and a pointer to
+   the other tool.
+B) Rename them to `search_documentation` and `search_customer_reports` so the intent is
+   clear from the name.
+C) Merge them into one `search(source)` tool with an enum, making the choice an explicit
+   parameter.
+D) Add a system-prompt rule sending questions that mention "reported" or "this week" to
+   `search_tickets`.
+
+**Answer: A**
+
+The model can't tell the tools apart from their descriptions. Disambiguation guidance
+(when to use, when to use the other, examples) fixes selection at its source.
+
+- **B** — Better names help, but a name can't say "use this for recent incidents and
+  whether others hit the same issue."
+- **C** — Moves the same ambiguous decision into a parameter with no extra guidance.
+- **D** — Keyword routing is brittle ("Is this crash known?" has neither word) and
+  competes with the tool descriptions.
+
+### W25 · Tool descriptions
+
+`get_order(order_id: string)` expects IDs like `ORD-0010293`. Customers say "#10293",
+"order 10293", and sometimes quote an invoice number such as "INV-10293" that shares the
+digits but refers to a different record. The model passes these through verbatim or
+guesses. Best fix?
+
+A) Add a regex `pattern` of `^ORD-\d{7}$` to `order_id` so malformed IDs are rejected.
+B) Normalize any digit string server-side into `ORD-` plus seven zero-padded digits.
+C) Add few-shot examples of well-formed `get_order` calls to the system prompt.
+D) Document the format, a conversion example, and how to tell orders from invoices.
+
+**Answer: D**
+
+The model needs the format, the conversion rule, and the disambiguation that only a
+description can carry.
+
+- **A** — Enforces the shape, but the model still doesn't know how to convert, so it gets
+  rejections and retries.
+- **B** — Right when every variant maps unambiguously. Here invoice digits would be
+  silently turned into the wrong order.
+- **C** — Shows well-formed calls but not the invoice-vs-order distinction, and lives
+  apart from the tool it governs.
+
+### W26 · Codebase exploration
+
+New to a repo, an agent is asked: "Find everywhere we send email to users." It starts
+reading files under `src/` alphabetically with Read. Best strategy?
+
+A) Glob `**/*email*` and `**/*mail*`, then Read each matching file in full.
+B) Grep for send-call patterns, then Read only the matching regions and callers.
+C) Read the README and module index first, then Read the modules they point to.
+D) Delegate to an Explore subagent instructed to read every file under `src/`.
+
+**Answer: B**
+
+The question is about call sites, which is file content. Grep finds them anywhere; Read
+then targets just those regions.
+
+- **A** — Glob finds files by name, right when naming conventions are reliable. Email is
+  often sent from `signup.py` or `billing/notify.go`.
+- **C** — Good orientation, but docs rarely list every send site; it doesn't locate them.
+- **D** — Isolates the cost but keeps the brute-force strategy; the subagent should Grep
+  too.
+
+### W27 · Codebase exploration
+
+Grep reports `reconcile_ledger` at line 4,210 of a 9,000-line file. The agent then calls
+Read on the file with default arguments, sees the first 2,000 lines, and concludes the
+function was removed. What should it have done?
+
+A) Called Read again, since repeated calls with default arguments page through the file.
+B) Used Bash `cat` on the file so the full contents arrive without the Read limit.
+C) Called Read with an offset near line 4,210 and a limit covering the function.
+D) Run Glob for other files defining `reconcile_ledger`, in case the match is a copy.
+
+**Answer: C**
+
+Grep gave the location; offset/limit reads exactly that region, keeping context lean.
+
+- **A** — Default calls start at the top each time; they don't page.
+- **B** — Dumps 9,000 lines into context, the opposite of targeted reading.
+- **D** — Searching for other definitions is right when a match might be a stale copy;
+  here the match is fine and the read was wrong.
+
+---
+
+# Domain 3 — Claude Code Configuration & Workflows (12)
+
+### W28 · Config mechanism
+
+React component conventions (design tokens, no inline styles, accessibility attributes;
+about 60 lines) apply to `packages/*/src/components/**/*.tsx` across 22 packages. They
+currently sit in the root `CLAUDE.md`, loading into every session, including backend Go
+work. Where should they go?
+
+A) A `.claude/rules/` file whose `paths:` glob matches component files.
+B) A `CLAUDE.md` file inside each of the 22 `components/` directories.
+C) A skill whose description says to use it when editing components.
+D) A guide imported via `@path` from the root `CLAUDE.md` file.
+
+**Answer: A**
+
+Path-scoped rules load when matching files are in play, from a single source, however
+scattered the paths are.
+
+- **B** — Subdirectory `CLAUDE.md` is right for one directory. Twenty-two copies drift.
+- **C** — Skills load on the model's judgment; conventions must apply whenever matching
+  files are touched.
+- **D** — Imports load at startup with the root file; the dilution problem is unchanged.
+
+### W29 · Config mechanism
+
+Rule: Claude must never read `.env*` files or anything under `secrets/`, even if a user
+asks. The team wants the rule reviewable and committed. Best mechanism?
+
+A) A `.claude/rules/secrets.md` file scoped by glob to `.env*` and `secrets/**`.
+B) A PreToolUse hook script that blocks Read on those paths by exiting with code 2.
+C) A strongly worded section in the root `CLAUDE.md` that explains the reasons.
+D) `deny` rules for `Read(./.env*)` and `Read(./secrets/**)` in project settings.
+
+**Answer: D**
+
+A path-based prohibition is exactly what permission rules express: declarative, enforced,
+committed.
+
+- **A** — Rules files are instructions to the model; advisory.
+- **B** — Enforces it, but with custom code where a built-in declarative rule suffices.
+  Hooks earn their place for logic permissions can't express (W30).
+- **C** — Advisory; "even if a user asks" is the case it fails.
+
+### W30 · Config mechanism
+
+Rule: Claude must never write a file whose content contains a string matching an AWS
+access-key pattern, whatever the file's name or path. Best mechanism?
+
+A) `deny` rules for `Write(**/*credentials*)` and `Edit(**/*.pem)` in project settings.
+B) A PreToolUse hook on Write/Edit that scans the proposed content, exiting 2 on a match.
+C) A PostToolUse hook on Write/Edit that scans the written file and reverts on a match.
+D) A path-scoped rule telling Claude never to put access keys into any source file.
+
+**Answer: B**
+
+The condition depends on content, which permission rules can't inspect. A PreToolUse hook
+sees the proposed content and blocks before anything hits disk.
+
+- **A** — The right tool for W29's path rule; it can't see content, and the key could be
+  in any file.
+- **C** — The secret is already on disk (and possibly picked up by watchers) before the
+  revert.
+- **D** — Advisory; the wrong layer for "never."
+
+### W31 · Config mechanism
+
+Map each item to its mechanism:
+
+1. "Use pnpm, never npm" — applies to all work in the repo.
+2. "Never run `terraform apply`" — must hold without exception.
+3. "CLIs under `scripts/**/*.py` use typer" — relevant only to those files.
+4. Quarterly dependency audit: multi-step procedure, bundled script, 300-line checklist.
+
+A) (1) `CLAUDE.md` · (2) `CLAUDE.md` · (3) path-scoped rule · (4) skill
+B) (1) `CLAUDE.md` · (2) settings deny · (3) skill · (4) skill
+C) (1) `CLAUDE.md` · (2) settings deny · (3) path-scoped rule · (4) skill
+D) (1) path-scoped rule · (2) settings deny · (3) path-scoped rule · (4) skill
+
+**Answer: C**
+
+Always-relevant guidance goes in `CLAUDE.md`; must-never-happen goes in permissions;
+file-type-specific guidance goes in a glob-scoped rule; an on-demand procedure with
+bundled material goes in a skill.
+
+- **A** — Item 2 in `CLAUDE.md` is advisory; "without exception" needs enforcement.
+- **B** — Item 3 as a skill depends on the model invoking it; a rule loads automatically
+  whenever matching files are touched.
+- **D** — Item 1 applies repo-wide; a path glob that covers everything is just
+  `CLAUDE.md` with extra steps, and it misses non-file work such as running commands.
+
+### W32 · PostToolUse hooks
+
+A PostToolUse hook on `Edit|Write` runs `prettier --write`, then `eslint` on the edited
+file. When eslint fails, the script prints errors to stderr and exits 1. Formatting
+works, but Claude never fixes lint errors and appears unaware of them. Fix?
+
+A) Exit with code 2 on lint failure so that stderr is fed back to Claude.
+B) Move the lint step into a PreToolUse hook so it blocks the bad edit.
+C) Print the lint errors to stdout instead of stderr when eslint fails.
+D) Add a `CLAUDE.md` rule telling Claude to fix any lint errors it sees.
+
+**Answer: A**
+
+Exit 1 is a non-blocking error shown only to the user. Exit 2 from PostToolUse sends
+stderr to Claude (the tool already ran), so it can act. A JSON
+`{"decision": "block", "reason": ...}` output also works.
+
+- **B** — PreToolUse runs before the file changes; linting the final file content belongs
+  after the edit.
+- **C** — On exit 0, PostToolUse stdout isn't given to Claude either; same invisibility.
+- **D** — Claude can't fix errors it never receives; this is a delivery problem.
+
+### W33 · PostToolUse hooks
+
+Requirement: every file Claude edits must be left formatted immediately, so later reads,
+test runs and diffs in the same turn see clean code, regardless of whether Claude
+remembers to format. Best mechanism?
+
+A) A PreToolUse hook that rejects any Edit whose new content isn't already formatted.
+B) A git pre-commit hook that runs the formatter on staged files before each commit.
+C) A Stop hook that formats every file changed during the turn once Claude finishes.
+D) A PostToolUse hook on Edit/Write that runs the formatter on the edited file.
+
+**Answer: D**
+
+Per-edit, deterministic, and it fixes rather than rejects.
+
+- **A** — Turns formatting into model work; rejected edits cost turns, and models format
+  worse than formatters do.
+- **B** — Right for enforcing at commit time, for humans too. Inside a session, files stay
+  unformatted until a commit that may never happen.
+- **C** — Right for expensive end-of-turn checks. Here intermediate reads and test runs
+  within the turn still see unformatted files.
+
+### W34 · PostToolUse hooks *(select TWO)*
+
+A team added a PostToolUse hook that runs the full 14-minute test suite after every file
+edit. Sessions crawl. They still want broken code caught early and never committed. Which
+two changes?
+
+A) Raise the hook's timeout so the full suite completes instead of being cut off.
+B) Keep PostToolUse for fast checks on the edited file: format, lint, related tests.
+C) Replace the hook with a `CLAUDE.md` rule to run the suite before declaring done.
+D) Keep the full suite in PostToolUse, but only for edits to files under `src/`.
+E) Run the full suite from a PreToolUse hook on Bash when the command is `git commit`.
+
+**Answer: B and E**
+
+Match the cost of a check to how often it runs: cheap, file-scoped checks per edit; the
+expensive suite once, gating the commit.
+
+- **A** — Addresses being cut off, not slowness; every edit still waits 14 minutes.
+- **C** — Swaps enforcement for advice; the guarantee is gone.
+- **D** — Most edits are under `src/`; nearly every edit still pays the full cost.
+
+### W35 · Iterative refinement
+
+A developer asks Claude for a function turning legacy address strings into structured
+fields. Across three rounds of prose clarification ("handle apartment numbers properly,"
+"c/o lines aren't street lines") the outputs keep missing in new ways. What next?
+
+A) Rewrite the request as a formal grammar for addresses and include it in the prompt.
+B) Ask Claude to interview you about edge cases before it writes another version.
+C) Provide five input → expected-output pairs covering apartment, PO box and c/o cases.
+D) Start a fresh session so earlier misreadings stop shaping its newer attempts.
+
+**Answer: C**
+
+When prose is interpreted inconsistently, concrete examples pin the transformation down
+unambiguously.
+
+- **A** — A formal grammar is still a description to interpret, and a costly one to write.
+- **B** — Interviewing is right when you don't yet know the considerations (W37). Here you
+  know the answer; the communication is failing.
+- **D** — Right when context pollution is the cause; a fresh session given the same prose
+  misreads it again.
+
+### W36 · Iterative refinement
+
+A generated migration script has five problems. Three interact: null handling in date
+parsing affects timezone conversion, which affects the dedup key. Two are independent:
+log formatting and a CLI flag's name. How should the feedback be given?
+
+A) The three interacting issues together in one message; the other two separately.
+B) All five issues one per message, verifying each fix before raising the next.
+C) All five issues in a single message, so Claude can plan every fix together.
+D) A request to regenerate the whole script from scratch, listing all five issues.
+
+**Answer: A**
+
+Interacting fixes must be designed together or they undo each other; independent ones are
+cleaner to fix and verify one at a time.
+
+- **B** — Right for independent issues. For the coupled three, fixing null handling alone
+  shifts the dedup behaviour that a later message then has to fix again.
+- **C** — Mixing unrelated cosmetic issues into the coupled batch dilutes attention and
+  makes the result harder to verify.
+- **D** — Discards the working parts and reintroduces new risk across the whole script.
+
+### W37 · Iterative refinement
+
+A developer wants a caching layer for a service in a domain new to them. Claude's first
+two implementations work but miss considerations the developer only recognizes afterward
+(stampedes on expiry, behaviour across regions). Before the next attempt, what's the best
+technique?
+
+A) Provide input → output examples of expected cache behaviour for common requests.
+B) Write a test suite first and have Claude iterate on the cache until it passes.
+C) Use plan mode so you can review Claude's caching design before it writes code.
+D) Have Claude ask you questions about load, consistency and failure modes first.
+
+**Answer: D**
+
+The gap is requirements nobody has stated. An interview surfaces the considerations
+before code encodes the wrong ones.
+
+- **A** — W35's answer: right when you know the desired behaviour. Here you don't yet.
+- **B** — Tests can only encode the considerations you already thought of.
+- **C** — You'd review a design built on the same missing considerations.
+
+### W38 · Plan mode vs direct execution
+
+A developer must rename a field in a public API response (two files, about 15 lines).
+Three external teams consume the response. The change is easy to revert in code, but
+consumers would need to change their integrations. Best approach?
+
+A) Direct execution, since the change is two files and trivial to revert.
+B) Plan mode, producing a plan the consuming teams can review before coding.
+C) Direct execution, relying on pull request review to surface any concerns.
+D) Direct execution behind a feature flag so consumers can opt in to it.
+
+**Answer: B**
+
+Stakeholder review before implementation is one of the plan-mode triggers, regardless of
+size. The design questions (deprecation window, versioning, aliasing) need agreement
+first.
+
+- **A** — Right for small internal changes; the code is reversible, the consumers' work
+  isn't.
+- **C** — PR review happens after implementation and usually doesn't include the external
+  teams.
+- **D** — A flag manages rollout risk but doesn't settle the contract design that
+  consumers must agree to.
+
+### W39 · Plan mode vs direct execution
+
+An agent must move session storage from sticky in-memory sessions to Redis. There are
+several valid designs (write-through, lazy migration, dual-read). Production sessions are
+affected, and a wrong cutover logs users out. The agent hasn't explored this codebase.
+
+A) Direct execution in small, test-covered increments, adjusting course as issues appear.
+B) Plan mode, drafting the plan from the ticket text, approved before any exploration.
+C) Plan mode, exploring the codebase read-only first, then proposing an approach.
+D) Direct execution of two competing designs on separate branches, then comparing them.
+
+**Answer: C**
+
+Architectural uncertainty plus an irreversible production impact calls for plan mode, and
+plan mode's value comes from read-only exploration before proposing.
+
+- **A** — Right for reversible work with a known approach; here the approach itself is
+  undecided.
+- **B** — Approval of an unexplored plan inherits its blind spots.
+- **D** — Exploring alternatives in parallel is right once candidates are understood;
+  building two before knowing the constraints is premature and costly.
+
+---
+
+# Domain 4 — Prompt Engineering & Structured Output (12)
+
+### W40 · Feedback loops
+
+A code-review agent posts findings on PRs; developers dismiss about 40% of them. The team
+wants to cut false positives over time without losing real issues. What should they
+build?
+
+A) Tag each finding with a pattern/category ID, log dismissal reasons, and analyze by
+   category.
+B) Raise the confidence threshold for posting until the dismissal rate falls below 15%.
+C) Collect developers' free-text comments weekly and paste them into the review prompt.
+D) Add few-shot examples of accepted high-quality findings to the review prompt.
+
+**Answer: A**
+
+Structured metadata turns "40% dismissed" into "category X is 90% dismissed," which
+points at a specific prompt, rule or example to change.
+
+- **B** — Right if errors were spread uniformly. A global threshold drops real issues in
+  good categories along with noise from bad ones.
+- **C** — Unstructured and ever-growing; nothing tells you which pattern to fix.
+- **D** — Positive examples don't teach which constructs produce false positives.
+
+### W41 · Feedback loops
+
+Human reviewers correct extraction errors in a review UI. The corrected value overwrites
+the extracted one, and nothing else is stored. Months later, the team can't tell which
+prompt or schema changes would help. What should have been captured?
+
+A) Per-field accuracy rates, tracked weekly, with alerts when any field drops below its
+   baseline.
+B) A higher review sampling rate, so a larger share of extractions get corrected values.
+C) Each corrected document added to a growing pool of few-shot examples in the prompt.
+D) Each correction's field, original and corrected values, error type and document traits.
+
+**Answer: D**
+
+Diagnosis needs the error itself, its type (missing, fabricated, format, wrong source),
+and what kind of document produced it.
+
+- **A** — Right for monitoring. It says that a field is getting worse, not why.
+- **B** — More corrections, still no record of what was wrong.
+- **C** — An unstructured pool grows the prompt without targeting the actual failure
+  modes.
+
+### W42 · Feedback loops
+
+Correction logs show 70% of `invoice_date` errors come from European documents where
+`04/05/2026` (4 May) was read as 5 April. What is the best targeted change?
+
+A) Route every invoice from European suppliers to human review until accuracy recovers.
+B) Add a date-format instruction, a DD/MM few-shot example, and a raw-date-string field.
+C) Add a general instruction to double-check all dates against the source document.
+D) Add a validator that rejects any `invoice_date` later than the processing date.
+
+**Answer: B**
+
+The pattern names the cause; the fix targets it in the prompt (instruction plus a
+matching example) and the schema (keeping the raw string allows later re-parsing and
+audit).
+
+- **A** — Right when the error can't be fixed by changing the prompt or schema; this one
+  clearly can.
+- **C** — Generic; the model doesn't know which convention applies.
+- **D** — Catches impossible dates, but 4 May and 5 April are both plausible; the
+  validator can't tell.
+
+### W43 · Feedback loops
+
+After a prompt change aimed at the date errors, how should the team verify it helped
+without regressing other fields?
+
+A) Deploy the new prompt and compare overall production accuracy over two weeks.
+B) Have the model grade a sample of its new outputs against the extraction rubric.
+C) Re-run a fixed eval set built from logged failures and compare per error category.
+D) A/B test the prompt on 10% of live traffic and compare reviewer correction rates.
+
+**Answer: C**
+
+Logged failures become a regression set; comparing per category shows both the targeted
+improvement and any regression elsewhere.
+
+- **A** — Aggregate accuracy hides category shifts, and it takes weeks of exposure.
+- **B** — Self-grading isn't independent verification.
+- **D** — Good as a final production check, but slow, exposes users, and rare categories
+  barely appear in 10% of traffic.
+
+### W44 · Feedback loops *(select TWO)*
+
+An extractor's semantic validator checks that line items sum to the stated total. On
+failure the retry message is "Extraction invalid, try again"; retries succeed about 10% of
+the time. Some invoices genuinely contain arithmetic errors. Which two changes?
+
+A) Raise the retry limit from two to five, since some attempts do succeed later.
+B) Retry with a larger model, since validation failures reflect limited reasoning.
+C) Put the failed check, computed vs stated totals and line items into the retry.
+D) Add `calculated_total`, `stated_total` and `totals_conflict` fields to the schema.
+E) Route every failed validation straight to human review instead of retrying.
+
+**Answer: C and D**
+
+Specific feedback makes retries fixable; schema fields let a real discrepancy in the
+source be reported honestly rather than "fixed" by fabrication.
+
+- **A** — More attempts with the same vague signal; and genuine source errors never pass.
+- **B** — Treats a missing-information problem as a capacity problem.
+- **E** — Right for failures that can't be recovered. Many of these can be with specific
+  feedback.
+
+### W45 · Feedback loops
+
+A validator requires `tax_id`. About 8% of documents simply don't contain one. A retry
+loop sends "tax_id missing — please re-extract" up to three times. Retries increasingly
+return plausible but invented IDs. Best fix?
+
+A) Separate absent-from-source failures from extraction errors; stop retrying the former.
+B) Make the retry message name exactly which field failed and quote the rule broken.
+C) Add a few-shot example of a document where the tax ID appears in an odd location.
+D) Lower the retry limit to one so that fabricated values are produced less often.
+
+**Answer: A**
+
+Retries can fix extraction errors, never missing information. Classify the failure;
+absent data should become an honest null with a reason, not another attempt.
+
+- **B** — W44's fix, right for real extraction errors. Here it pressures the model to
+  produce a value that doesn't exist.
+- **C** — Helps when the ID exists but is hard to find; not when it's absent.
+- **D** — Fewer fabrications, but the loop still asks for data that isn't there.
+
+### W46 · Feedback loops
+
+A security-review agent keeps flagging parameterized ORM queries as SQL injection. The
+team suspects specific constructs are triggering it, but doesn't yet know which. What
+should they add first?
+
+A) A request for developers to explain each false positive in a short reply.
+B) A lower severity for SQL injection findings so they stop blocking merges.
+C) An instruction telling the agent that parameterized ORM queries are safe.
+D) A `detected_pattern` field naming the code construct behind each finding.
+
+**Answer: D**
+
+Structured per-finding metadata lets dismissals be grouped by construct, revealing which
+ones misfire.
+
+- **A** — Free text, inconsistent, and dependent on effort.
+- **B** — Hides real injections along with false ones.
+- **C** — The right fix once the construct is known; the team doesn't know yet, and it
+  may be a specific wrapper rather than "ORM queries" in general.
+
+### W47 · Extraction schemas
+
+`document_type` is an enum: `["invoice", "receipt", "credit_note"]`. New document types
+keep arriving (proforma invoices, statements, debit notes), and the model forces each
+into `"invoice"`. Best schema change?
+
+A) Change `document_type` to a free-text string so new types are captured verbatim.
+B) Add `"other"` to the enum, plus a `document_type_detail` string for the specifics.
+C) Add `"proforma"` and `"statement"` to the enum, since those are the types now seen.
+D) Make `document_type` nullable so unrecognized types come back as `null` instead.
+
+**Answer: B**
+
+`"other"` gives an honest slot inside the constraint; the detail field preserves what it
+actually was for later enum expansion.
+
+- **A** — Loses validation; inconsistent and invented values reappear.
+- **C** — Right for a closed set; the stem says the long tail keeps growing.
+- **D** — `null` can't distinguish "unknown" from "known but not listed," and loses the
+  information.
+
+### W48 · Extraction schemas
+
+Some documents have no PO number; some have one that's illegible. Downstream must
+distinguish "confirmed no PO" from "couldn't read it." Best schema for `po_number`?
+
+A) Optional; omitted whenever no PO number can be found in the document.
+B) Required, using the string `"N/A"` whenever no PO number is printed.
+C) Required and nullable, plus a status enum: present, absent, illegible.
+D) Required and nullable, returning `null` whenever no value is extracted.
+
+**Answer: C**
+
+Two distinct reasons for having no value need two representations; a status enum carries
+the reason.
+
+- **A** — Omission is also what an oversight looks like.
+- **B** — A sentinel string pretends to be data and breaks typed consumers.
+- **D** — Right when only present/absent matters; here "absent" and "illegible" collapse
+  into the same `null`.
+
+### W49 · Extraction schemas
+
+A contract's cover page says "Effective January 1." Clause 12 says it takes effect "upon
+signature," and the signature page is dated January 14. The schema has
+`effective_date: date (required)`; the model picks one arbitrarily. Best fix?
+
+A) A nullable date plus a candidates list with source locations and a conflict flag.
+B) An instruction to prefer the cover-page date when effective dates disagree.
+C) A nullable date that returns `null` whenever the document gives two dates.
+D) Few-shot examples showing which date to pick in common conflicting layouts.
+
+**Answer: A**
+
+The ambiguity is real. The schema should represent it with evidence so it can be routed
+to review, not resolved by guessing.
+
+- **B** — Right if a business rule existed; none is given, so this encodes a guess.
+- **C** — Honest, but discards both candidates and their sources.
+- **D** — Teaches a resolution the business never decided.
+
+### W50 · Extraction schemas
+
+A multinational supplier base sends invoices in USD, CAD and AUD. `currency` is an enum
+`["USD", "EUR", "GBP"]`. Documents showing only "$" are labelled USD. Best fix?
+
+A) Add CAD and AUD to the enum so dollar documents have more options to choose from.
+B) Instruct the model to default to USD for "$" unless the document says otherwise.
+C) Make `currency` nullable so documents showing only "$" return `null` for currency.
+D) Add an `"ambiguous"` enum value and a field capturing the raw currency symbol.
+
+**Answer: D**
+
+The value is genuinely undetermined. An explicit `"ambiguous"` plus the raw evidence
+supports review or a later lookup against supplier records.
+
+- **A** — Necessary for complete coverage, but "$" alone still can't select among them.
+- **B** — Right for a mostly-US supplier base; here it bakes in a wrong guess.
+- **C** — Loses the evidence that it was a dollar currency.
+
+### W51 · Extraction schemas
+
+Scanned order forms are extracted with a required `shipping_address` object whose
+subfields (street, city, postcode) are all required. Digital-only orders have no shipping
+address, and the model copies the billing address into it. The forms are the only source.
+
+A) Keep the object required but make every subfield optional so partial data fits.
+B) Make the object itself nullable, keeping subfields required whenever present.
+C) Add an instruction that digital orders must never copy billing into shipping.
+D) Remove `shipping_address` and look it up later for physical orders only.
+
+**Answer: B**
+
+Absence belongs at the level where it occurs: the whole address is absent. When present,
+it must still be complete.
+
+- **A** — Allows a half-filled "address" for physical orders, which is a new failure.
+- **C** — Advisory, and the required schema still demands a value.
+- **D** — Right if another authoritative source existed; the stem says the forms are the
+  only one.
+
+---
+
+# Domain 5 — Context Management & Reliability (9)
+
+### W52 · Context across sessions
+
+A codebase audit will span about three sessions. Each new session re-explores modules the
+previous one already covered, because nothing from earlier sessions survives. Best
+approach?
+
+A) Resume the previous session each day so earlier exploration is still in context.
+B) Run one long session and `/compact` whenever it nears the context limit.
+C) Keep a findings file the agent updates as it works and reads at each session start.
+D) Append each day's findings to the project `CLAUDE.md` so every session loads them.
+
+**Answer: C**
+
+A scratchpad file decouples durable findings from any one context window.
+
+- **A** — Resuming carries the bloated history that hit the limit; day two starts nearly
+  full.
+- **B** — Summaries lose detail unpredictably, and the audit exceeds one session anyway.
+- **D** — Pollutes shared team config with transient audit state.
+
+### W53 · Context across sessions
+
+To answer "How is retry logic implemented and configured?", the agent must look at 12
+services, each with its own retry code and config files. Even with targeted reading this
+is dozens of reads. Afterwards the agent must implement a change in one service, and the
+main context should stay clean for that. Best approach?
+
+A) Delegate to an Explore subagent that returns a summary with file and line references.
+B) Grep for each retry site, then Read only the matching regions directly in context.
+C) Read everything in context, then run `/compact` before starting the implementation.
+D) Read the files in context, limiting each read to the first 200 lines of every file.
+
+**Answer: A**
+
+Breadth-heavy exploration is what subagent isolation is for: the reading happens in a
+separate context and only the distilled result returns.
+
+- **B** — Right when the answer lives in a few places; across 12 services the regions
+  still pile up in the main context.
+- **C** — Pays the full cost first, then trusts a summarizer to keep the right details.
+- **D** — Arbitrary truncation misses code past line 200.
+
+### W54 · Context across sessions *(select TWO)*
+
+A coordinator dispatches exploration subagents, but each returns pasted file contents and
+long transcripts of its reasoning. The coordinator's context fills as fast as if it had
+read everything itself. Which two changes fix this?
+
+A) Run `/compact` in the coordinator after each subagent returns its full output.
+B) Specify a return format: conclusions, file:line references, open questions, no raw
+   content.
+C) Let subagents inherit the coordinator's full context so they skip redundant reading.
+D) Run the subagents one after another so their outputs don't arrive all at once.
+E) Have subagents write detailed notes to a file and return only its path and a summary.
+
+**Answer: B and E**
+
+Isolation only saves context if what comes back is distilled. Detail that might be needed
+later goes to a file, not into the coordinator's context.
+
+- **A** — Repairs after the bloat, with lossy summaries.
+- **C** — Increases each subagent's cost and does nothing about what they return.
+- **D** — Same total volume, just spread over time.
+
+### W55 · Context across sessions
+
+An audit's scratchpad has grown into a 3,000-line append-only log. Every new session
+reads it at startup and starts with a third of its context gone. What is the best change?
+
+A) Split the notes into several topic files and have the agent read all of them at start.
+B) Move the notes into `CLAUDE.md`, which is designed to load into every session.
+C) Keep appending, but have the agent read only the last 300 lines at session start.
+D) Rewrite it as curated state: confirmed facts, decisions, ruled-out areas, questions.
+
+**Answer: D**
+
+A scratchpad's value is curation. A maintained state document stays small; a log grows
+without limit.
+
+- **A** — Same volume across more files.
+- **B** — Same volume, now loaded for everyone.
+- **C** — Arbitrary truncation drops early confirmed facts that are still true.
+
+### W56 · Context across sessions
+
+To change a function signature used across the codebase, the agent reads all 25 caller
+files in full (about 1,500 lines each) to see how the function is used, filling its
+context. Best approach?
+
+A) Give each caller file its own subagent, returning an analysis of the whole file.
+B) Grep for the call sites and Read only a window around each call to see its usage.
+C) Read the callers in full, but `/compact` after every five files to reclaim space.
+D) Read only the function's own module and infer usage from its docstring and types.
+
+**Answer: B**
+
+The need is usage at the call sites, which is a small, locatable region in each file.
+
+- **A** — Isolation for a problem that targeted reading solves; 25 subagents is heavy
+  overhead.
+- **C** — Pays the full read cost and loses detail with each compaction.
+- **D** — The docstring describes intent, not how callers actually pass arguments.
+
+### W57 · Context across sessions
+
+After hours of debugging, the agent's context is full of failed hypotheses, and it keeps
+drifting back to variants of them. The confirmed facts are few and solid. Best way to get
+fresh root-cause candidates?
+
+A) Run `/compact` with instructions to drop the failed hypotheses from the summary.
+B) Add a scratchpad note listing each failed hypothesis as ruled out, then continue.
+C) Give a fresh subagent only the confirmed facts and ask it for root-cause candidates.
+D) Restart the session and re-run the full exploration from the very beginning.
+
+**Answer: C**
+
+The problem is anchoring on accumulated reasoning. A clean context seeded only with
+verified facts reasons without that pull.
+
+- **A** — The summarizer must reliably separate failed reasoning from facts, and the
+  framing that produced the failures often survives.
+- **B** — A ruled-out list prevents re-checking the same thing, but the anchoring
+  context is still there.
+- **D** — Repeats the work and tends to rediscover the same paths.
+
+### W58 · Context across sessions
+
+During exploration the agent learns two things: (1) the test suite needs `make db-up`
+before it runs, a durable project fact; (2) it suspects the retry bug is in
+`client/backoff.go` near line 88, task state for this investigation. Where should each go?
+
+A) (1) project `CLAUDE.md`; (2) the task's scratchpad file.
+B) Both in the task's scratchpad, since both came from this work.
+C) Both in project `CLAUDE.md`, so future sessions start with both.
+D) (1) user-level `~/.claude/CLAUDE.md`; (2) the scratchpad file.
+
+**Answer: A**
+
+Durable conventions everyone needs go in committed project config; per-task working state
+goes in the task's scratchpad.
+
+- **B** — The test prerequisite is lost to every other task and teammate.
+- **C** — Transient suspicions pollute shared config and go stale.
+- **D** — User scope doesn't reach teammates or CI.
+
+### W59 · Context across sessions
+
+Partway through a long exploration, auto-compaction fired. The summary kept the
+conclusions but lost which modules had already been examined, so the agent re-explores
+them. Best fix?
+
+A) Disable auto-compaction so the exploration history can never be summarized away.
+B) Give `/compact` instructions to preserve the list of modules already examined.
+C) Re-run Glob at each step so the agent rediscovers the module structure as needed.
+D) Record each examined module and its key findings in a scratchpad file as it goes.
+
+**Answer: D**
+
+Progress tracked in a file survives any compaction deterministically.
+
+- **A** — Trades this problem for overflow.
+- **B** — Helps, but still depends on summarizer fidelity, and the list must be rebuilt
+  from history on every compaction.
+- **C** — Rediscovers structure, not which modules were covered or what was found.
+
+### W60 · Context across sessions
+
+On day one, a coordinator dispatched eight Explore subagents. Their summaries exist only
+in the day-one transcript. On day two a new session starts without them; resuming day one
+would reload the transcript that overflowed. Best fix going forward?
+
+A) Resume the day-one session, since the subagent summaries are already in its history.
+B) Have subagent summaries written to a shared findings file the next session reads.
+C) Re-dispatch the same eight subagents on day two to regenerate their summaries.
+D) Copy the eight summaries into the project `CLAUDE.md` before the session ends.
+
+**Answer: B**
+
+Subagent output that must outlive the session needs a persistent home outside the
+conversation.
+
+- **A** — Brings back the overflowing transcript to recover eight paragraphs.
+- **C** — Repeats a full day's exploration.
+- **D** — Puts task findings into shared team config.
