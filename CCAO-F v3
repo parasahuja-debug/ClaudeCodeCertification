@@ -1,0 +1,1527 @@
+# CCAO-F Practice Set 03 — Claude Certified Associate – Foundations
+
+Written against the official Exam Guide v1.0 (July 2026). Original practice items, not exam
+content. 60 questions · 120 minutes · domain-grouped · ~60% Advanced / ~40% Expert · 8
+select-TWO items. No situation repeats Sets 01–02 or Purcell's practice exam. Every wrong
+option is a real practice; the answer under each question says where it would be right.
+
+| Domain | Weight | Items |
+|---|---|---|
+| 1 Prompting and Task Execution | 14% | 8 |
+| 2 Output Evaluation and Validation | 21% | 13 |
+| 3 Product and Model Selection | 12% | 7 |
+| 4 Workflow Integration and Solution Design | 16% | 10 |
+| 5 Configuration and Knowledge Management | 12% | 7 |
+| 6 Governance, Risk, and Responsible Use | 15% | 9 |
+| 7 Troubleshooting and Optimization | 10% | 6 |
+
+---
+
+## Domain 1: Prompting and Task Execution (14%)
+
+### Question 1.1 · Advanced · Multiple choice · select ONE
+
+A grant writer asks Claude to draft the "statement of need" for a funding application. The
+funder requires local statistics, and Claude's draft includes figures she can't trace to any
+source. She already has a sheet of verified local data. What is the best revision?
+
+**A.** Supply her verified data, use only those figures, and mark any gap for her.
+
+**B.** Ask Claude to add a source citation after every statistic it uses.
+
+**C.** Turn on research mode so Claude can find current local statistics itself.
+
+**D.** Drop the statistics and make the case qualitatively, with local stories.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Advanced. She holds the authoritative data. Supplying it, restricting Claude
+to it and flagging gaps removes the invented figures at their source.
+- **B** — Citations can be fabricated too. Right only when paired with checking each source.
+- **C** — Right when she has no data; here she already has verified figures, and found ones
+  still need checking.
+- **D** — Fails the funder's explicit requirement.
+
+</details>
+
+### Question 1.2 · Expert · Multiple choice · select ONE
+
+A customer-facing refund policy has been approved word for word by legal. An associate asked
+Claude to "improve this," and the result rephrased several clauses, subtly changing their
+meaning. She only needs typos and grammar fixed. Which prompt fits?
+
+**A.** "Improve clarity, keeping the meaning of every clause the same."
+
+**B.** "Fix only spelling and grammar, change nothing else, and list each fix."
+
+**C.** "Rewrite it in plain English, then send it back to legal to approve."
+
+**D.** "Make minimal edits, changing the text only where clearly needed."
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Expert. Qualifier: the wording is legally approved. The task is
+proofreading, not editing, so the prompt must forbid other changes and make each change
+reviewable.
+- **A** — The near-miss: "clarity" invites rephrasing. Right for text that isn't locked.
+- **C** — Right when the goal is a plain-English rewrite; here it reopens approved wording.
+- **D** — "Minimal" is vague and still permits rewording.
+
+</details>
+
+### Question 1.3 · Advanced · Multiple choice · select ONE
+
+An associate asks Claude to draft a nomination for an industry award. The award publishes
+five judging criteria, and she has detailed notes on the nominee's achievements. Which
+prompt gets the strongest first draft?
+
+**A.** Ask for an inspiring, memorable nomination that makes the nominee stand out.
+
+**B.** Ask Claude what judges of such awards usually look for, then draft to that.
+
+**C.** Give two past winning nominations as examples and ask for one in that style.
+
+**D.** Give the five criteria and her notes, asking Claude to evidence each one.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Advanced. The judging criteria are the success criteria. Mapping her
+evidence to each one aims the draft at how it will be scored.
+- **A** — Tone without targets.
+- **B** — Guesses at criteria that are already published.
+- **C** — Right when the criteria aren't published; examples show style, not this nominee's
+  fit.
+
+</details>
+
+### Question 1.4 · Expert · Multiple choice · select ONE
+
+A manager's only feedback on a Claude-drafted team vision statement is "it doesn't feel
+right." He is traveling and can't elaborate this week. What is the most productive next
+step?
+
+**A.** Ask Claude to revise the statement so it feels more right to the manager.
+
+**B.** Regenerate the statement several times and send the one that seems best.
+
+**C.** Create two or three deliberately different versions for him to react to.
+
+**D.** Ask Claude what is wrong with the draft and apply what it suggests.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Expert. Qualifier: the feedback is vague and he can't explain it.
+Contrasting options let him show a preference he can't yet state.
+- **A** — Passes the vagueness straight through.
+- **B** — Random variation, not deliberate contrast.
+- **D** — Right when the criteria are known; here Claude can't know what "feels right" means
+  to him.
+
+</details>
+
+### Question 1.5 · Advanced · Multiple choice · select ONE
+
+An office manager asks Claude for team-building ideas. Most suggestions need travel or
+exceed the budget. The real constraints are $20 per head, on-site, 90 minutes, and
+accessible to everyone. What is the best revision?
+
+**A.** State the four constraints up front in the prompt and ask again.
+
+**B.** Keep the prompt and filter the suggestions down herself afterward.
+
+**C.** Ask for twice as many ideas, so more of them happen to be feasible.
+
+**D.** Ask for "realistic, practical ideas" instead of creative ones.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Advanced. Hard constraints belong in the prompt, so every idea is feasible.
+- **B** — Works, but wastes the generation; right for loose, exploratory brainstorming.
+- **C** — Volume doesn't target feasibility.
+- **D** — "Realistic" is vague and leaves out the actual limits.
+
+</details>
+
+### Question 1.6 · Advanced · Multiple choice · select ONE
+
+An associate wants Claude to stress-test her business case before it goes to finance. Twice,
+Claude has called it "strong and well-reasoned." Which request gets the most useful
+critique?
+
+**A.** "Be honest with me: is this business case actually good enough to submit?"
+
+**B.** "Argue the strongest case against this and name its three weakest assumptions."
+
+**C.** "Rate your confidence in each assumption from 1 to 10 and explain why."
+
+**D.** "Review this as a skeptical CFO would, and tell me what you'd think of it."
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Asking for an opposing argument and specific weak points forces
+critique in place of agreement.
+- **A** — A yes/no question that invites more reassurance.
+- **C** — Self-rated confidence is poorly calibrated.
+- **D** — The near-miss: the persona helps, but "what you'd think" invites a verdict, not
+  specific weak points.
+
+</details>
+
+### Question 1.7 · Advanced · Multiple choice · select ONE
+
+A teacher needs a reading passage about volcanoes for grade 4 students. "Make it simpler"
+helped a little, but the vocabulary is still too advanced. What is the most effective next
+prompt?
+
+**A.** "Grade 4 level: sentences under 12 words, everyday words; match this sample."
+
+**B.** "Rate this passage's reading level, then revise it down to grade 4."
+
+**C.** "Make it even simpler, so that a young child could easily follow it."
+
+**D.** "Cut the passage to half its length, keeping only the main facts."
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Advanced. Measurable constraints and a sample at the target level replace a
+vague adjective.
+- **B** — The self-assessment of reading level is unreliable.
+- **C** — The same vague lever that already underperformed.
+- **D** — Shorter isn't simpler.
+
+</details>
+
+### Question 1.8 · Expert · Multiple response · select TWO
+
+A project manager will give Claude a one-hour client workshop transcript to produce a record
+of decisions and actions. Which TWO prompt elements most reduce errors? (Select TWO.)
+
+**A.** A request for a narrative summary of how the discussion unfolded
+
+**B.** A rule to separate decisions made from options only discussed, with an example
+
+**C.** An instruction to be accurate and to include every important point
+
+**D.** A note of each participant's sentiment toward the main proposals
+
+**E.** A rule that each action names an owner and due date, or "not stated"
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B, E** · Expert. The two classic errors are recording discussion as decisions and
+inventing owners or dates. Each element closes one.
+- **A** — A different deliverable.
+- **C** — Vague; it defines neither error.
+- **D** — Adds subjective content the record doesn't need.
+
+</details>
+
+---
+
+## Domain 2: Output Evaluation and Validation (21%)
+
+### Question 2.1 · Advanced · Multiple choice · select ONE
+
+Claude's survey summary says "most customers are dissatisfied with delivery." Checking the
+data, the associate finds that 18% of respondents mentioned delivery negatively. What should
+she do?
+
+**A.** Soften the wording to "many customers," which stays closer to the data.
+
+**B.** Ask Claude to recheck the claim against the survey data and correct it.
+
+**C.** Replace it with the actual proportion and recheck every quantified claim.
+
+**D.** Remove the delivery finding, since the summary overstated it.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. Quantifier inflation is an error. State the actual figure, and
+check the other claims, since the same pattern may repeat.
+- **A** — Still unsupported; 18% isn't "many" in the sense readers will take it.
+- **B** — Self-checking; use it to find claims, not to verify them.
+- **D** — Throws away a real finding.
+
+</details>
+
+### Question 2.2 · Expert · Multiple choice · select ONE
+
+Claude's research-mode brief on remote-work practices will guide policy for the company's
+Asia-Pacific offices. Every cited study comes from US companies. What is the best response?
+
+**A.** Accept it, since good remote-work practice is broadly universal.
+
+**B.** Add a note that the sources are US-based, then circulate it.
+
+**C.** Ask Claude to adapt each US finding to Asia-Pacific culture.
+
+**D.** Seek regional sources and flag findings that may not transfer.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: the audience differs from the evidence base. A skewed
+sample needs a validity check, not just a disclaimer.
+- **A** — Assumes transferability with no evidence.
+- **B** — The near-miss: transparent, but leaves policy built on evidence that may not
+  apply.
+- **C** — Speculative adaptation presented as findings.
+
+</details>
+
+### Question 2.3 · Advanced · Multiple choice · select ONE
+
+Claude drafts a forklift-safety notice for warehouse staff from the equipment manual. The
+associate has checked the wording against the manual. What else should happen before it is
+posted?
+
+**A.** Post it now, since it has been checked against the manual.
+
+**B.** Have the site's safety officer review it before posting.
+
+**C.** Ask Claude to confirm the notice matches the manual.
+
+**D.** Post it with a label saying it was drafted with AI.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Safety-critical content needs the accountable expert's review,
+beyond matching the source.
+- **A** — Right for routine content; safety guidance needs expert sign-off.
+- **C** — Self-check.
+- **D** — A label doesn't make it safe.
+
+</details>
+
+### Question 2.4 · Expert · Multiple choice · select ONE
+
+Research mode reports a competitor launched a product in March 2026, citing a
+news-aggregator blog. The associate finds the blog simply republished a press release. The
+date will appear in a client deliverable. What should she do?
+
+**A.** Accept it, since the claim carries a citation she can point to.
+
+**B.** Find a second aggregator site that reports the same date.
+
+**C.** Ask Claude to find more sources supporting the date.
+
+**D.** Check the date in the competitor's original press release.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: the cited source is secondhand. Trace the claim to the
+primary source.
+- **A** — A citation isn't verification.
+- **B** — Aggregators often share one origin, so agreement is circular.
+- **C** — More secondary sources still need the primary check.
+
+</details>
+
+### Question 2.5 · Advanced · Multiple choice · select ONE
+
+A bank associate uses Claude to draft a reply to a customer whose parent has died and who
+needs to close the account. The draft is upbeat and ends with a promotion for savings
+products. What edit is needed?
+
+**A.** Add a condolence line at the top and keep the rest as written.
+
+**B.** Make it formal, using precise legal language throughout.
+
+**C.** Rewrite it with an empathetic tone, clear steps, and no promotion.
+
+**D.** Send the standard template, since the closure process is standard.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. The audience's situation drives tone and content. A promotion is
+inappropriate here.
+- **A** — The near-miss: a patch on the wrong tone, and the promotion stays.
+- **B** — Formality isn't empathy.
+- **D** — The process may be standard; the reader's situation isn't.
+
+</details>
+
+### Question 2.6 · Advanced · Multiple choice · select ONE
+
+Claude has compared six software options across eight attributes. The steering group needs
+to scan and compare the options quickly before choosing. Which output format fits?
+
+**A.** A narrative paragraph for each option, covering all eight attributes.
+
+**B.** A bulleted list of the main advantages of each of the six options.
+
+**C.** A chart showing a single combined score for each of the six options.
+
+**D.** A table with options as rows and attributes as columns, plus a recommendation.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Advanced. Many-by-many comparison calls for a table.
+- **A** — Right for one or two options; six are hard to compare in prose.
+- **B** — Shows advantages only, with no attribute alignment.
+- **C** — Right as a summary visual; it hides the attribute trade-offs.
+
+</details>
+
+### Question 2.7 · Expert · Multiple choice · select ONE
+
+Claude's summary of a user-interview transcript for an internal research report puts one
+sentence in quotation marks. The transcript shows the interviewee said something similar but
+worded differently. What should the associate do?
+
+**A.** Keep the quotation, since its meaning matches what was said.
+
+**B.** Use the transcript's exact wording, or remove the quotation marks.
+
+**C.** Keep the quotation, and add "[paraphrased]" right after it.
+
+**D.** Ask the interviewee to confirm the wording before using it.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Expert. Qualifier: quotation marks assert exact words. Either quote verbatim
+or present it as a paraphrase.
+- **A** — Misrepresents what was said.
+- **C** — The near-miss: contradictory, since quotation marks still signal exact words.
+- **D** — Right for a published, attributed quote; overkill for an internal report.
+
+</details>
+
+### Question 2.8 · Advanced · Multiple choice · select ONE
+
+Claude drafts a response to a request for proposal (RFP) that lists 42 mandatory
+requirements. Missing any one disqualifies the bid. What is the most reliable completeness
+check?
+
+**A.** Ask Claude to confirm all 42 requirements are covered.
+
+**B.** Read the full response from start to finish for flow.
+
+**C.** Map each requirement to where the response meets it.
+
+**D.** Check the response is within the page limit set.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. A requirement-by-requirement compliance matrix is a systematic
+completeness check.
+- **A** — Self-check.
+- **B** — Checks readability, not compliance.
+- **D** — Necessary, but a different check.
+
+</details>
+
+### Question 2.9 · Expert · Multiple choice · select ONE
+
+Claude analyzes regional sales data and writes that "Region B underperforms due to weak
+sales leadership." The dataset contains sales figures only, with nothing about leadership.
+What should change?
+
+**A.** Keep it, since the explanation is plausible and readers expect a cause.
+
+**B.** Ask Claude for the evidence behind its conclusion about leadership.
+
+**C.** Ask Region B's head to confirm the cause before the report goes out.
+
+**D.** Present the gap as fact and any cause as an untested hypothesis.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: the data shows the gap, not its cause. A causal claim
+beyond the data must go or be labeled as a hypothesis.
+- **A** — Plausible isn't supported.
+- **B** — Claude may invent evidence to back its claim.
+- **C** — Right for investigating the cause later; the report should reflect the data now.
+
+</details>
+
+### Question 2.10 · Advanced · Multiple choice · select ONE
+
+Claude extracts contact details from 300 event sign-up emails. The list will be imported
+into the CRM, which uses a fixed import template. Which output fits?
+
+**A.** A table with Claude's own clear column names for each field.
+
+**B.** A table whose columns exactly match the CRM import template.
+
+**C.** A JSON file, since structured data imports most reliably.
+
+**D.** A short written profile for each contact, in narrative form.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. The destination system defines the structure, so match its
+template exactly.
+- **A** — Needs remapping before import.
+- **C** — Right if the importer takes JSON; this one uses a template.
+- **D** — Not importable.
+
+</details>
+
+### Question 2.11 · Advanced · Multiple choice · select ONE
+
+Claude's summary of the annual report states "revenue grew 15%," without saying over what
+period or against what baseline. The summary goes to investors. What should the associate
+do?
+
+**A.** Add the period and baseline, taken from the report itself.
+
+**B.** Ask Claude to add the context it thinks is most likely correct.
+
+**C.** Remove the figure, since it may be misread by investors.
+
+**D.** Leave it, since readers will assume a year-on-year comparison.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Advanced. A figure without its basis is incomplete. Complete it from the
+source.
+- **B** — Invites a guess.
+- **C** — Throws away a key fact.
+- **D** — An assumption on an investor-facing figure.
+
+</details>
+
+### Question 2.12 · Expert · Multiple response · select TWO
+
+A team lead reviews eight Claude-drafted reference letters for departing interns, written
+from supervisors' notes. Which TWO checks best catch bias? (Select TWO.)
+
+**A.** Ask Claude whether any of the eight letters contain bias
+
+**B.** Make sure all eight letters are about the same length
+
+**C.** Compare descriptors across interns with similar performance
+
+**D.** Confirm each statement traces to the supervisor's notes
+
+**E.** Check spelling, grammar and the formatting of each letter
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C, D** · Expert. Bias shows up as unequal language for equal performance, or as
+content not grounded in the notes.
+- **A** — Self-check.
+- **B** — Length parity isn't fairness.
+- **E** — Quality, not bias.
+
+</details>
+
+### Question 2.13 · Advanced · Multiple response · select TWO
+
+Before a Claude-drafted summary of quarterly financials goes to the board, which TWO checks
+matter most? (Select TWO.)
+
+**A.** Reconcile every figure to the finance report
+
+**B.** Ask Claude to review its own summary once more
+
+**C.** Check fonts and layout against the board template
+
+**D.** Trim the summary to fit on a single page
+
+**E.** Confirm causal claims like "driven by" are supported
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A, E** · Advanced. Both the numbers and the explanations of them must be grounded
+in the source.
+- **B** — Self-check.
+- **C** — Presentation.
+- **D** — Length, not accuracy.
+
+</details>
+
+---
+
+## Domain 3: Product and Model Selection (12%)
+
+### Question 3.1 · Advanced · Multiple choice · select ONE
+
+A freelance writer works for three clients, each with its own style guide and terminology.
+Claude sometimes mixes one client's terms into another's work. Which setup fits best?
+
+**A.** Save each client's style rules to Memory so Claude recalls them.
+
+**B.** A separate Project per client, with its own instructions and guide.
+
+**C.** One Project holding all three guides, naming the client each time.
+
+**D.** Standard chats, pasting the right guide in at the start of each.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Separate contexts prevent cross-contamination, and each client's
+setup persists.
+- **A** — Memory blends across all work, which is exactly the mixing problem.
+- **C** — All three guides compete in one context.
+- **D** — Works but is manual; right for an occasional client.
+
+</details>
+
+### Question 3.2 · Expert · Multiple choice · select ONE
+
+An associate must combine the company's internal sales reports with current public market
+data into one analysis. What is the best way to use Claude?
+
+**A.** Use research mode on its own, asking it to cover both parts.
+
+**B.** Upload the reports and the market data together as one file.
+
+**C.** Upload the internal reports and ask for market data from Claude.
+
+**D.** Upload the internal reports and use research mode for market data.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: two kinds of source. Internal data comes from uploads;
+current external data comes from research mode, which keeps the sources traceable.
+- **A** — Research mode can't see internal reports.
+- **B** — There is no current market data to upload without researching it first.
+- **C** — Market data from training may be outdated and has no source.
+
+</details>
+
+### Question 3.3 · Advanced · Multiple choice · select ONE
+
+A team's daily Claude work mixes drafting, summarizing, light analysis, and the occasional
+complex strategy question. Which default model policy fits?
+
+**A.** Opus for everything, so quality is never in doubt.
+
+**B.** Haiku for everything, to keep usage costs lowest.
+
+**C.** Sonnet as the default, with Opus for complex work.
+
+**D.** No guidance, leaving each person to choose freely.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. A balanced default, with an escalation path for the hard cases.
+- **A** — Overpays for routine work.
+- **B** — Underpowered for the analysis and strategy work.
+- **D** — Inconsistent results and wasted usage.
+
+</details>
+
+### Question 3.4 · Expert · Multiple choice · select ONE
+
+An associate uploads 15 long market reports into one chat and asks Claude to compare them.
+The comparison misses findings from several reports. What is the best approach?
+
+**A.** Summarize each report to a fixed template, then compare those.
+
+**B.** Switch to the most capable model and re-ask in the same chat.
+
+**C.** Compare the reports two at a time across many separate chats.
+
+**D.** Upload all 15 to a Project's knowledge and ask the same question.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Qualifier: too much material to compare at once. Condense each
+report to a consistent structure first, then compare the structured summaries.
+- **B** — A better model doesn't fix an overloaded context.
+- **C** — Fragmented; there is no single view across all 15.
+- **D** — Stores the reports, but the comparison still spans 15 long documents.
+
+</details>
+
+### Question 3.5 · Advanced · Multiple choice · select ONE
+
+A finance associate needs an Excel workbook with working formulas built from data she has
+given Claude. What is the best approach?
+
+**A.** Ask Claude to output the table in chat and copy it into Excel.
+
+**B.** Ask for an artifact with the table, then rebuild it in Excel.
+
+**C.** Ask Claude to create the .xlsx file using its file creation tools.
+
+**D.** Use research mode to find a matching Excel template online.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. Claude can create the actual file, formulas included, with code
+execution and file creation.
+- **A** — Formulas are lost when copying.
+- **B** — Right for viewing or sharing; still means manual rebuilding.
+- **D** — A template isn't her data.
+
+</details>
+
+### Question 3.6 · Expert · Multiple choice · select ONE
+
+An associate with Memory enabled must work on a confidential acquisition. She doesn't want
+its details carried into her other chats. What is the best approach?
+
+**A.** Tell Claude at the start not to remember anything from this chat.
+
+**B.** Use an incognito chat, which isn't saved or used for Memory.
+
+**C.** Do the work in a normal chat, then delete it once it's done.
+
+**D.** Turn Memory off for good, since this work is confidential.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Expert. Qualifier: keep one piece of work out of Memory without losing
+Memory elsewhere. That is what incognito chats are for.
+- **A** — An instruction isn't a guaranteed control.
+- **C** — The details may already have shaped Memory before deletion.
+- **D** — Over-correction; it loses Memory for all her other work.
+
+</details>
+
+### Question 3.7 · Advanced · Multiple response · select TWO
+
+Which TWO situations most clearly signal it's time to start a fresh chat? (Select TWO.)
+
+**A.** You need to add one more file to the current analysis
+
+**B.** Claude keeps repeating mistakes you've already corrected
+
+**C.** You want a slightly different tone in the next paragraph
+
+**D.** You are switching to an unrelated task
+
+**E.** Claude asks you a clarifying question
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B, D** · Advanced. A degraded context and an unrelated task are both reasons for a
+clean start.
+- **A** — Continue; the task builds on this chat.
+- **C** — A targeted follow-up is enough.
+- **E** — Answer it; it's normal.
+
+</details>
+
+---
+
+## Domain 4: Workflow Integration and Solution Design (16%)
+
+### Question 4.1 · Advanced · Multiple choice · select ONE
+
+A stakeholder emails "we need a dashboard for the operations team" and nothing more. How can
+Claude best help turn this into requirements?
+
+**A.** Forward the request so a developer can decide what to build.
+
+**B.** Draft a dashboard mockup right away to show her what's possible.
+
+**C.** List the standard operations KPIs as the starting requirements.
+
+**D.** Generate clarifying questions on users, decisions and data to ask her.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Advanced. A vague request needs requirements elicited first: who uses it,
+what decisions it supports, what data it needs.
+- **A** — Hands off unclear requirements.
+- **B** — Right once the requirements exist; premature now.
+- **C** — Generic KPIs replace what she actually needs.
+
+</details>
+
+### Question 4.2 · Expert · Multiple choice · select ONE
+
+An associate is rolling out a Claude Project to a 20-person team. Five activities are
+involved:
+
+1. Pilot with three users and collect the failures
+2. Write the instructions and curate the knowledge
+3. Define what the Project should and shouldn't handle
+4. Roll out with a short guide and a feedback channel
+5. Revise based on the pilot results
+
+In which order should the activities be carried out?
+
+**A.** 3 → 2 → 1 → 5 → 4
+
+**B.** 3 → 2 → 4 → 1 → 5
+
+**C.** 2 → 3 → 1 → 5 → 4
+
+**D.** 3 → 1 → 2 → 5 → 4
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Scope, then build, pilot, revise, and roll out.
+- **B** — Rolls out to everyone before piloting.
+- **C** — Builds before the scope is set.
+- **D** — Pilots before anything is built.
+
+</details>
+
+### Question 4.3 · Advanced · Multiple choice · select ONE
+
+An operations team has designed a new customer-returns process and launches it next month.
+How can Claude add the most value before launch?
+
+**A.** Ask Claude to confirm that the process design is complete.
+
+**B.** Have Claude generate edge cases to walk the process through.
+
+**C.** Ask Claude for a generic checklist for returns processes.
+
+**D.** Launch, then have Claude analyze complaints for problems.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Edge-case scenarios stress-test a design before customers find its
+gaps.
+- **A** — Asking Claude to confirm invites agreement, not testing.
+- **C** — Generic, not this process.
+- **D** — Reactive; right after launch, alongside D before it.
+
+</details>
+
+### Question 4.4 · Expert · Multiple choice · select ONE
+
+A marketing executive wants the website to say "our research reports are 100% AI-verified."
+Analysts draft with Claude, and humans fact-check every report. What should the associate
+advise?
+
+**A.** Agree, since every report passes through Claude before release.
+
+**B.** Avoid mentioning AI at all, so no claim can be challenged.
+
+**C.** Use accurate wording: AI-assisted drafting, human-verified facts.
+
+**D.** Keep the claim and add a note that AI can make mistakes.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Expert. Qualifier: the claim misstates who verifies. Communicate Claude's
+role accurately.
+- **A** — A false and risky claim.
+- **B** — Defensible, but it gives up a truthful claim about value.
+- **D** — Contradicts itself.
+
+</details>
+
+### Question 4.5 · Advanced · Multiple choice · select ONE
+
+An associate spends a day each month compiling a 30-page report and wants Claude to automate
+it. Access logs show almost no one opens the report. What should come first?
+
+**A.** Have Claude automate the report so it takes an hour, not a day.
+
+**B.** Switch the report to quarterly, so it's compiled less often.
+
+**C.** Use Claude to add more analysis so the report becomes worth reading.
+
+**D.** Ask readers what they use, before deciding to automate or redesign.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Advanced. Don't automate waste. Confirm the need before optimizing the work.
+- **A** — Efficiently produces something unused.
+- **B** — A guess at the fix without asking.
+- **C** — More content in an unread report.
+
+</details>
+
+### Question 4.6 · Expert · Multiple choice · select ONE
+
+A manager wants developers to build a custom tool that turns weekly meeting notes into
+summaries in a fixed format. The notes are already typed up, and no system integration is
+needed. What should the associate propose?
+
+**A.** Escalate to developers as the manager requested.
+
+**B.** A Project with instructions and a template for the format.
+
+**C.** Buy a third-party meeting-notes tool for the team.
+
+**D.** Use Claude ad hoc each week, with no setup at all.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Expert. Qualifier: no integration needed. This is within associate scope, so
+escalating would waste developer time.
+- **A** — Right when automation or integration is required; not here.
+- **C** — Unnecessary when existing tools fit.
+- **D** — Works, but the format will drift.
+
+</details>
+
+### Question 4.7 · Advanced · Multiple choice · select ONE
+
+An associate is redesigning how her team handles incoming partnership requests. How can
+Claude best support the solution design?
+
+**A.** Ask for several designs and compare them on agreed criteria.
+
+**B.** Ask Claude which design is best, without stating criteria.
+
+**C.** Adopt the first workflow design that Claude suggests.
+
+**D.** Design it without Claude and use Claude only to format it.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Advanced. Generate alternatives, then judge them against explicit criteria.
+- **B** — A judgment with no basis.
+- **C** — No alternatives considered.
+- **D** — Forgoes design support.
+
+</details>
+
+### Question 4.8 · Expert · Multiple choice · select ONE
+
+A Claude pilot cut proposal turnaround by 40%, but one proposal sent to a client had an
+incorrect price. The associate is reporting to leadership. What should the report do?
+
+**A.** Present the time savings and leave out the error, since the net result is positive.
+
+**B.** Recommend pausing the program until the risk of any error is fully eliminated.
+
+**C.** Attribute the error to the model and propose switching to another provider.
+
+**D.** Present the results, the error, its cause, and the safeguard now in place.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Credible reporting covers outcomes and failures, with the root cause
+and remediation.
+- **A** — Concealment destroys trust when it surfaces.
+- **B** — Over-reaction; zero error isn't a standard any process meets.
+- **C** — A process gap, such as a missing price check, isn't fixed by changing vendors.
+
+</details>
+
+### Question 4.9 · Advanced · Multiple choice · select ONE
+
+Two months after a Claude rollout, usage is low. Surveyed staff say they "aren't sure when
+it's useful." What is the best response?
+
+**A.** Send the vendor's general training video to all staff again.
+
+**B.** Make Claude use mandatory for a fixed list of weekly tasks.
+
+**C.** Share a playbook of team-specific use cases with tested prompts.
+
+**D.** Wait, since adoption of new tools usually grows on its own.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. The barrier is knowing where Claude fits. Show concrete, relevant
+uses.
+- **A** — Generic content when the gap is specific.
+- **B** — A mandate without understanding.
+- **D** — Ignores the stated barrier.
+
+</details>
+
+### Question 4.10 · Advanced · Multiple response · select TWO
+
+Which TWO steps of a procurement workflow are best suited to Claude augmentation? (Select
+TWO.)
+
+**A.** Summarizing supplier proposals against the requirements
+
+**B.** Making the final award decision between suppliers
+
+**C.** Negotiating price live with the shortlisted suppliers
+
+**D.** Drafting standard RFP sections from approved templates
+
+**E.** Signing the contract with the winning supplier
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A, D** · Advanced. These are text-heavy, reviewable steps; accountable decisions
+and live negotiation stay with people.
+- **B** — An accountable decision.
+- **C** — A live relationship and judgment.
+- **E** — A legal commitment.
+
+</details>
+
+---
+
+## Domain 5: Configuration and Knowledge Management (12%)
+
+### Question 5.1 · Advanced · Multiple choice · select ONE
+
+In a benefits Q&A Project, Claude sometimes answers from general knowledge when the uploaded
+documents don't cover a question, giving advice that conflicts with company practice. Which
+instruction fixes this?
+
+**A.** "If the documents don't cover it, say so and refer to HR."
+
+**B.** "Use general knowledge to fill any gaps left by the documents."
+
+**C.** "Always answer confidently, so that users trust the Project."
+
+**D.** "Answer from the documents, and add a note to verify with HR."
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Advanced. Define the behavior when knowledge runs out: state the gap and
+route to the owner.
+- **B** — Right for general-purpose Projects; here it's the cause.
+- **C** — Encourages unsupported answers.
+- **D** — The near-miss: gaps still get filled from general knowledge, now with a
+  disclaimer.
+
+</details>
+
+### Question 5.2 · Expert · Multiple choice · select ONE
+
+A Project's knowledge holds one 300-page equipment manual. Questions about later chapters
+often get vague or wrong answers. Users only need about six chapters. What is the best fix?
+
+**A.** Instruct Claude to read the whole manual carefully every time.
+
+**B.** Add a table of contents with page numbers to the instructions.
+
+**C.** Upload the six relevant chapters as clearly titled separate files.
+
+**D.** Switch to a more capable model for this Project's questions.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Expert. Qualifier: only part of the manual is needed. Curated, well-labeled
+knowledge makes the relevant content easier to find and use.
+- **A** — An instruction doesn't change how much material there is.
+- **B** — Helps navigation a little; the bulk remains.
+- **D** — Capability isn't the bottleneck.
+
+</details>
+
+### Question 5.3 · Advanced · Multiple choice · select ONE
+
+An associate connects Google Drive to Claude, but Claude can't find any of her work files.
+She realizes she connected her personal Google account. What should she do?
+
+**A.** Share her work files with her personal account so Claude can see them.
+
+**B.** Upload the work files manually to each chat from now on.
+
+**C.** Ask IT to copy the work files into her personal Drive.
+
+**D.** Reconnect the connector using her work Google account.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Advanced. Connect the correct, governed account.
+- **A** — Moves work data into a personal account, a policy risk.
+- **B** — Works, but forgoes a permitted connector.
+- **C** — The same policy risk, with extra steps.
+
+</details>
+
+### Question 5.4 · Expert · Multiple choice · select ONE
+
+A team Project's instructions say "always write in formal British English." Team members
+also use it to draft quick informal Slack messages, and Claude keeps making those formal.
+What is the best instruction design?
+
+**A.** Make formal the default, and let explicit requests for informal override it.
+
+**B.** Remove the tone rule and let every user set the tone in each chat.
+
+**C.** Create a separate Project used only for drafting Slack messages.
+
+**D.** Keep the strict rule, since consistency matters more than convenience.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Qualifier: one legitimate exception. Set a default and an explicit
+override rule.
+- **B** — Loses the default most work needs.
+- **C** — Right when the needs differ widely; here one override rule is enough.
+- **D** — Blocks a legitimate use.
+
+</details>
+
+### Question 5.5 · Advanced · Multiple choice · select ONE
+
+After months of edits by different people, a Project's instructions run to four pages with
+duplicated and contradictory rules. What is the best fix?
+
+**A.** Add a rule: "When rules conflict, follow the most recent one."
+
+**B.** Move the instructions into a knowledge file to save instruction space.
+
+**C.** Consolidate into one deduplicated set with an owner and change log.
+
+**D.** Clear the instructions and let users add their own rules in each chat.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. Contradictions need resolving, and ownership stops them coming
+back.
+- **A** — Claude can't tell which rule is most recent.
+- **B** — Rules in knowledge apply less reliably than instructions.
+- **D** — Loses consistency.
+
+</details>
+
+### Question 5.6 · Expert · Multiple choice · select ONE
+
+An associate replaces an outdated price list in a Project's knowledge. A week later, some
+colleagues still get old prices — all in long chats they started before the update. What is
+the best fix?
+
+**A.** Delete the Project and recreate it with the new price list.
+
+**B.** Re-upload the new price list a second time to the Project.
+
+**C.** Add an instruction to ignore prices quoted earlier in a chat.
+
+**D.** Tell colleagues to start new chats for pricing questions.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: only old chats are affected. Their earlier messages still
+hold the old prices, so new chats pick up the update cleanly.
+- **A** — Over-correction.
+- **B** — The file is already current.
+- **C** — Unreliable against prices already sitting in the conversation.
+
+</details>
+
+### Question 5.7 · Advanced · Multiple response · select TWO
+
+Before linking a shared Drive folder to a team Project, which TWO checks matter most?
+(Select TWO.)
+
+**A.** Whether every file in the folder is under ten pages long
+
+**B.** Whether filenames follow the team's naming convention
+
+**C.** Whether the content suits everyone with Project access
+
+**D.** Whether Claude will be able to edit the files in the folder
+
+**E.** Whether the folder holds the authoritative versions
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C, E** · Advanced. Access appropriateness and source authority are what matter.
+- **A** — Length isn't the gate.
+- **B** — Tidiness, not risk.
+- **D** — Not the concern for a reference source.
+
+</details>
+
+---
+
+## Domain 6: Governance, Risk, and Responsible Use (15%)
+
+### Question 6.1 · Advanced · Multiple choice · select ONE
+
+An employee asks Claude to complete their mandatory annual compliance-training quiz "to save
+time." What is the appropriate response?
+
+**A.** Use Claude only for the quiz's hardest questions.
+
+**B.** Do the quiz yourself, using Claude to study the material.
+
+**C.** Use Claude, then review the answers before submitting.
+
+**D.** Ask the manager whether using Claude for it is acceptable.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. The quiz certifies personal knowledge. Claude can support
+learning, not stand in for it.
+- **A** — Still misrepresents competence.
+- **C** — Reviewing doesn't change who took the quiz.
+- **D** — Right when it's genuinely unclear; certification integrity isn't.
+
+</details>
+
+### Question 6.2 · Expert · Multiple choice · select ONE
+
+At an investment firm, an associate wants Claude to draft replies to customers asking which
+fund suits them. Personal recommendations are regulated and require a licensed adviser. What
+is the right setup?
+
+**A.** Claude drafts recommendations, each with a "not financial advice" note.
+
+**B.** Claude drafts recommendations, and any staff member reviews them.
+
+**C.** Claude is kept away from any query that relates to investments.
+
+**D.** Claude drafts factual fund information; advisers handle suitability.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: the regulated activity has a licensing requirement.
+Claude stays on the factual side of that line.
+- **A** — A disclaimer doesn't stop it being a recommendation.
+- **B** — The reviewer must be licensed.
+- **C** — Over-correction; factual information is fine.
+
+</details>
+
+### Question 6.3 · Advanced · Multiple choice · select ONE
+
+An associate wants Claude to summarize a recorded call that included external partners.
+Company policy requires notifying participants before their contributions are processed with
+AI. The partners weren't told. What should happen?
+
+**A.** Remove the partners' names, then process the transcript.
+
+**B.** Process it, since the summary is only for internal use.
+
+**C.** Notify the partners or get consent first, as the policy requires.
+
+**D.** Summarize only the internal participants' contributions.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. The policy's notice requirement applies however the output is
+used.
+- **A** — The notice requirement covers their contributions, not just their names.
+- **B** — Internal use isn't an exception.
+- **D** — Context from the partners still gets processed.
+
+</details>
+
+### Question 6.4 · Expert · Multiple choice · select ONE
+
+The company has approved its enterprise Claude workspace. An associate finds a third-party
+browser extension that uses Claude and is more convenient, but it isn't on the
+approved-tools list. What should she do?
+
+**A.** Stick to the approved workspace; request a review of it.
+
+**B.** Use the extension only for tasks with no confidential data.
+
+**C.** Use the extension now and tell IT about it afterward.
+
+**D.** Use the extension, since the model underneath it is Claude.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Qualifier: the approval covers the access path, not the model. A
+third party sees the data.
+- **B** — Data classification isn't the only risk.
+- **C** — Approval comes before use.
+- **D** — The near-miss: same model, different data handling.
+
+</details>
+
+### Question 6.5 · Advanced · Multiple choice · select ONE
+
+A company newsletter article was drafted mostly by Claude, then edited by the named author.
+Company policy requires disclosing substantial AI assistance in publications. What applies?
+
+**A.** No disclosure, since the author edited the article.
+
+**B.** Remove the byline so no person is credited.
+
+**C.** Disclose the AI assistance, as the policy requires.
+
+**D.** Disclose AI use only if a reader asks about it.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. The policy's threshold is met, so follow it.
+- **A** — Editing doesn't remove substantial assistance.
+- **B** — Avoids the question rather than complying.
+- **D** — The policy requires proactive disclosure.
+
+</details>
+
+### Question 6.6 · Expert · Multiple choice · select ONE
+
+An associate wants to show a vendor how she analyzed a problem. Her Claude chat also
+contains client figures. The vendor is under a general NDA. What should she share?
+
+**A.** The chat's share link, since the vendor is under an NDA.
+
+**B.** A screenshot of the full chat, so nothing is lost in context.
+
+**C.** The share link, deleting the shared chat once they've seen it.
+
+**D.** Only the needed excerpt, after confirming it's cleared to share.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: D** · Expert. Qualifier: the chat mixes client data with the method. Share the
+minimum, after checking it's cleared.
+- **A** — The near-miss: an NDA may not cover this client's data.
+- **B** — Same exposure, in a different format.
+- **C** — Exposure happens on viewing.
+
+</details>
+
+### Question 6.7 · Advanced · Multiple choice · select ONE
+
+An aircraft maintenance technician asks Claude for the torque specification for a specific
+engine part. What is the appropriate use?
+
+**A.** Use Claude's value if it states it with confidence.
+
+**B.** Use Claude's value once a colleague has checked it.
+
+**C.** Use the manufacturer's spec; Claude can help find it.
+
+**D.** Avoid Claude for any maintenance-related work at all.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: C** · Advanced. Safety-critical values come only from the authoritative source.
+- **A** — Confidence isn't accuracy.
+- **B** — Checked against what? The manual is the only valid reference.
+- **D** — Over-correction; Claude can help with lookup and documentation.
+
+</details>
+
+### Question 6.8 · Expert · Multiple choice · select ONE
+
+A property team uses Claude to prioritize tenant maintenance requests. An audit shows
+requests written in non-standard English get ranked lower at the same severity. What is the
+best fix?
+
+**A.** Rank on explicit severity criteria, and audit outcomes by group.
+
+**B.** Keep Claude, and have staff manually review the top ten each day.
+
+**C.** Have Claude rewrite every request in standard English before ranking.
+
+**D.** Stop using Claude for prioritizing maintenance requests.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Qualifier: the bias was found by auditing outcomes. Anchor ranking
+to explicit criteria and keep auditing.
+- **B** — Misses the requests that were wrongly ranked low.
+- **C** — The near-miss: may help, but it's unverified without the criteria and the audit.
+- **D** — Over-correction; the fix is the criteria.
+
+</details>
+
+### Question 6.9 · Advanced · Multiple response · select TWO
+
+Which TWO are responsible practices when publishing Claude-assisted content externally?
+(Select TWO.)
+
+**A.** Credit the expert who supplied the brief, without their review
+
+**B.** Verify factual claims against their original sources
+
+**C.** Disclose AI assistance where organizational policy requires
+
+**D.** Cite Claude as the source for the factual statements made
+
+**E.** Have Claude fact-check the final draft before it's released
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B, C** · Advanced. Verified facts, and transparency as policy requires.
+- **A** — Attributes content to someone who didn't review it.
+- **D** — Claude isn't a primary source.
+- **E** — Self-check.
+
+</details>
+
+---
+
+## Domain 7: Troubleshooting and Optimization (10%)
+
+### Question 7.1 · Advanced · Multiple choice · select ONE
+
+Five people use the same team Project. Two consistently get good results; three get poor
+ones on the same kinds of task. What should be checked first?
+
+**A.** Whether the model is giving random results between users.
+
+**B.** The prompts the two groups write for the same task.
+
+**C.** Whether a more capable model would fix the poor results.
+
+**D.** Whether the Project's knowledge files need rewriting.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Same Project, different results: the variable is the input, so
+compare the prompts.
+- **A** — A consistent split between users isn't randomness.
+- **C** — Same model for everyone.
+- **D** — Same knowledge for everyone.
+
+</details>
+
+### Question 7.2 · Expert · Multiple choice · select ONE
+
+After an associate added three example product descriptions to a prompt, the format improved
+— but Claude now reuses the examples' product features and phrases in descriptions of
+unrelated products. What is the best fix?
+
+**A.** Use varied examples and state they illustrate format only.
+
+**B.** Add several more examples of the same product category.
+
+**C.** Tell Claude to be creative and avoid repeating phrases.
+
+**D.** Remove the examples and go back to written instructions only.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Qualifier: the examples work for format but leak content. Diversify
+them and state their purpose.
+- **B** — More of the same deepens the copying.
+- **C** — Vague, and it doesn't address the cause.
+- **D** — Loses the format gains.
+
+</details>
+
+### Question 7.3 · Advanced · Multiple choice · select ONE
+
+A director spends ten minutes digging the conclusions out of each long Claude analysis. The
+detail is sometimes needed later. What is the best adjustment?
+
+**A.** Ask for much shorter analyses with less detail overall.
+
+**B.** Ask for a three-bullet summary first, with detail below.
+
+**C.** Switch to a faster model to produce analyses more quickly.
+
+**D.** Have an assistant skim each analysis for the director.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Put the conclusion first and keep the detail available.
+- **A** — Right if the detail is never needed; here it is.
+- **C** — Speed of generation isn't the bottleneck.
+- **D** — Moves the cost elsewhere.
+
+</details>
+
+### Question 7.4 · Expert · Multiple choice · select ONE
+
+An HR associate asks Claude, "How do I terminate someone quickly?" and gets a hedged,
+cautious answer. She needs the company's documented termination procedure, which is in the
+Project's knowledge. What is the best fix?
+
+**A.** Add context: her HR role, the purpose, and the policy source.
+
+**B.** Rephrase so the termination topic isn't directly mentioned.
+
+**C.** Switch to a different model, which may hedge less often.
+
+**D.** Stop using Claude for HR topics and look up policy manually.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A** · Expert. Qualifier: an ambiguous prompt on a sensitive topic. Context makes
+the legitimate purpose clear and points Claude to the source.
+- **B** — Obscuring the topic gets a worse answer.
+- **C** — The prompt, not the model, is the issue.
+- **D** — Over-correction.
+
+</details>
+
+### Question 7.5 · Advanced · Multiple choice · select ONE
+
+Each time an associate asks a narrow question about one section of a large contract, she
+uploads the full 200-page agreement to a new chat, and answers are slow and often unfocused.
+What is the best optimization?
+
+**A.** Keep uploading the full contract, so nothing relevant is missed.
+
+**B.** Upload only the sections relevant to the question at hand.
+
+**C.** Switch to Haiku so that answers on the contract come faster.
+
+**D.** Ask each narrow question in a separate chat, with the full contract.
+
+<details>
+<summary>Answer</summary>
+
+**Answer: B** · Advanced. Relevant context only: faster and more focused.
+- **A** — The current problem.
+- **C** — Faster, but still unfocused.
+- **D** — The same problem, repeated.
+
+</details>
+
+### Question 7.6 · Advanced · Multiple response · select TWO
+
+Output quality in a team Project dropped right after a teammate edited its instructions.
+Which TWO steps come first? (Select TWO.)
+
+**A.** Compare the old and new instructions to find the change
+
+**B.** Upload more knowledge files to give Claude more context
+
+**C.** Switch the Project to a more capable model
+
+**D.** Ask users to rephrase their prompts more carefully
+
+**E.** Re-test saved questions after reverting or fixing it
+
+<details>
+<summary>Answer</summary>
+
+**Answer: A, E** · Advanced. Isolate the change, then verify the fix.
+- **B** — Not the cause.
+- **C** — Not the cause.
+- **D** — Shifts the work to users without fixing the cause.
+
+</details>
