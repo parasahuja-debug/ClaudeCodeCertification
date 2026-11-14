@@ -1,0 +1,11 @@
+# Secrets — never commit API keys (matches .env in any folder)
+.env
+.env.*
+# ...but do allow a values-free template showing which vars are needed
+!.env.example
+
+# Local .env audit log written by .claude/hooks/audit_env.py (machine-specific activity)
+.claude/audit/
+
+# Python bytecode caches (machine/version-specific, regenerated automatically)
+__pycache__/
